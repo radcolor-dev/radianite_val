@@ -435,7 +435,7 @@ pub fn rank_from_mmr(mmr: &Value, season_id: Option<&str>) -> Option<RankSnapsho
 
     let seasonal = season_id
         .and_then(|id| seasons.get(id))
-        .or_else(|| seasons.values().last())?;
+        .or_else(|| seasons.values().next_back())?;
 
     let tier = u32_path(seasonal, &["CompetitiveTier"]);
     let ranked_rating = i32_path(seasonal, &["RankedRating"]);

@@ -1,0 +1,65 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      buildOnly:
+        description: "Build the Windows NSIS installer without creating or uploading release assets"
+        required: false
+        type: boolean
+        default: false
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+jobs:
+  release:
+    name: Build Windows NSIS
+    runs-on: windows-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-rs -> target"
+
+      - name: Install frontend dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build Tauri bundle only
+        if: github.event_name == 'workflow_dispatch' && inputs.buildOnly == true
+        run: >
+          bun run tauri build
+          --bundles nsis
+          --config '{"bundle":{"createUpdaterArtifacts":false}}'
+          --ci
+          --no-sign
+
+      - name: Build and publish Tauri release
+        if: github.event_name != 'workflow_dispatch' || inputs.buildOnly != true
+        uses: tauri-apps/tauri-action@v0.6.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tauriScript: bun run tauri
+          args: --bundles nsis
+          tagName: v__VERSION__
+          releaseName: "Radianite v__VERSION__"
+          releaseBody: "See the assets to download and install this version."
+          releaseDraft: true
+          prerelease: false
+          releaseAssetNamePattern: "[name]_[version]_[platform]_[arch].[ext]"
