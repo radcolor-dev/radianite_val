@@ -14,6 +14,8 @@ pub fn run() {
     tauri::Builder::default()
         .manage(state)
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(move |_app| {
             let state = overlay_state.clone();
             tauri::async_runtime::spawn(async move {

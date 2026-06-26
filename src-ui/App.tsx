@@ -2,10 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
 import { openUrl } from "@tauri-apps/plugin-opener"
+import { relaunch } from "@tauri-apps/plugin-process"
+import { check, type DownloadEvent, type Update } from "@tauri-apps/plugin-updater"
 import {
   IconBrandDiscord,
   IconBroadcast,
   IconCopy,
+  IconDownload,
   IconExternalLink,
   IconPlayerPlay,
   IconPlayerStop,
@@ -131,6 +134,25 @@ type OverlayStatus = {
   updatedAt: string
 }
 
+type UpdaterStatus =
+  | "idle"
+  | "checking"
+  | "current"
+  | "available"
+  | "installing"
+  | "installed"
+  | "error"
+
+type UpdaterState = {
+  status: UpdaterStatus
+  message: string
+  currentVersion?: string | null
+  version?: string | null
+  date?: string | null
+  body?: string | null
+  progress?: number | null
+}
+
 const initialStatus: CoreStatus = {
   kind: "disconnected",
   message: "Radianite monitor has not started",
@@ -168,6 +190,12 @@ const initialOverlayStatus: OverlayStatus = {
   updatedAt: "",
 }
 
+const initialUpdaterState: UpdaterState = {
+  status: "idle",
+  message: "Updates have not been checked in this session",
+  progress: null,
+}
+
 function App() {
   const [diagnostics, setDiagnostics] =
     useState<DiagnosticSnapshot>(initialDiagnostics)
@@ -175,6 +203,8 @@ function App() {
   const [rpcStatus, setRpcStatus] = useState<RpcStatus>(initialRpcStatus)
   const [overlayStatus, setOverlayStatus] =
     useState<OverlayStatus>(initialOverlayStatus)
+  const [updater, setUpdater] = useState<UpdaterState>(initialUpdaterState)
+  const [availableUpdate, setAvailableUpdate] = useState<Update | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -234,6 +264,115 @@ function App() {
       setError(err instanceof Error ? err.message : String(err))
     }
   }, [overlayStatus.url])
+
+  const checkForUpdate = useCallback(async () => {
+    setError(null)
+    setUpdater({
+      status: "checking",
+      message: "Checking GitHub Releases for a signed update",
+      progress: null,
+    })
+
+    try {
+      const update = await check()
+      setAvailableUpdate(update)
+
+      if (!update) {
+        setUpdater({
+          status: "current",
+          message: "This build is up to date",
+          progress: null,
+        })
+        return
+      }
+
+      setUpdater({
+        status: "available",
+        message: `Version ${update.version} is ready to install`,
+        currentVersion: update.currentVersion,
+        version: update.version,
+        date: update.date,
+        body: update.body,
+        progress: null,
+      })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      setUpdater({
+        status: "error",
+        message,
+        progress: null,
+      })
+      setError(message)
+    }
+  }, [])
+
+  const installAvailableUpdate = useCallback(async () => {
+    if (!availableUpdate) return
+
+    setError(null)
+    setUpdater((current) => ({
+      ...current,
+      status: "installing",
+      message: `Installing version ${availableUpdate.version}`,
+      progress: 0,
+    }))
+
+    let downloadedBytes = 0
+    let contentLength: number | undefined
+    const onDownloadEvent = (event: DownloadEvent) => {
+      if (event.event === "Started") {
+        downloadedBytes = 0
+        contentLength = event.data.contentLength
+        setUpdater((current) => ({
+          ...current,
+          message: contentLength
+            ? `Downloading ${formatBytes(contentLength)}`
+            : "Downloading update",
+          progress: 0,
+        }))
+        return
+      }
+
+      if (event.event === "Progress") {
+        downloadedBytes += event.data.chunkLength
+        setUpdater((current) => ({
+          ...current,
+          message: contentLength
+            ? `Downloaded ${formatBytes(downloadedBytes)} of ${formatBytes(contentLength)}`
+            : `Downloaded ${formatBytes(downloadedBytes)}`,
+          progress: contentLength
+            ? Math.min(100, Math.round((downloadedBytes / contentLength) * 100))
+            : null,
+        }))
+        return
+      }
+
+      setUpdater((current) => ({
+        ...current,
+        message: "Installing update",
+        progress: 100,
+      }))
+    }
+
+    try {
+      await availableUpdate.downloadAndInstall(onDownloadEvent)
+      setUpdater((current) => ({
+        ...current,
+        status: "installed",
+        message: "Update installed. Relaunching Radianite.",
+        progress: 100,
+      }))
+      await relaunch()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      setUpdater((current) => ({
+        ...current,
+        status: "error",
+        message,
+      }))
+      setError(message)
+    }
+  }, [availableUpdate])
 
   useEffect(() => {
     const unlistenCallbacks: Array<() => void> = []
@@ -532,6 +671,65 @@ function App() {
 
             <Card>
               <CardHeader>
+                <CardTitle>App Updates</CardTitle>
+                <CardDescription>{updater.message}</CardDescription>
+                <CardAction>
+                  <Badge variant={updaterBadgeVariant(updater.status)}>
+                    {formatLabel(updater.status)}
+                  </Badge>
+                </CardAction>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3">
+                <div className="grid min-w-0 gap-2">
+                  <InfoRow
+                    label="Installed"
+                    value={updater.currentVersion}
+                  />
+                  <InfoRow label="Available" value={updater.version} />
+                  <InfoRow label="Published" value={formatUpdateDate(updater.date)} />
+                  <InfoRow label="Release notes" value={updater.body} />
+                </div>
+                {updater.status === "installing" ? (
+                  <div className="h-2 border bg-muted">
+                    <div
+                      className="h-full bg-primary transition-[width]"
+                      style={{
+                        width:
+                          updater.progress === null || updater.progress === undefined
+                            ? "35%"
+                            : `${updater.progress}%`,
+                      }}
+                    />
+                  </div>
+                ) : null}
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={checkForUpdate}
+                    disabled={
+                      updater.status === "checking" || updater.status === "installing"
+                    }
+                  >
+                    <IconRefresh data-icon="inline-start" />
+                    Check
+                  </Button>
+                  <Button
+                    onClick={installAvailableUpdate}
+                    disabled={
+                      !availableUpdate ||
+                      updater.status === "checking" ||
+                      updater.status === "installing"
+                    }
+                  >
+                    <IconDownload data-icon="inline-start" />
+                    Install
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
                 <CardTitle>Redacted Diagnostics</CardTitle>
                 <CardDescription>
                   Tokens, entitlement JWTs, and lockfile password are never shown.
@@ -628,6 +826,34 @@ function statusBadgeVariant(kind: CoreStatusKind) {
 
 function readyText(value: boolean) {
   return value ? "Ready" : "Not ready"
+}
+
+function updaterBadgeVariant(status: UpdaterStatus) {
+  if (status === "available" || status === "installed") return "default"
+  if (status === "checking" || status === "installing") return "outline"
+  if (status === "error") return "destructive"
+  return "secondary"
+}
+
+function formatBytes(value: number) {
+  if (value < 1024) return `${value} B`
+  const kb = value / 1024
+  if (kb < 1024) return `${kb.toFixed(1)} KB`
+  const mb = kb / 1024
+  return `${mb.toFixed(1)} MB`
+}
+
+function formatUpdateDate(value?: string | null) {
+  if (!value) return null
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+
+  return date.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  })
 }
 
 function formatLabel(value: string) {
