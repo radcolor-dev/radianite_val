@@ -305,7 +305,11 @@ fn state_text(snapshot: &LiveSnapshot) -> String {
 
     if let Some(size) = snapshot.party.size {
         let max = snapshot.party.max_size.unwrap_or(size);
-        let party_state = if size > 1 { "In Party" } else { "Solo" };
+        let party_state = match size {
+            1 => "Solo",
+            2 => "Duo",
+            _ => "In Party",
+        };
         parts.push(format!("{party_state} {size}/{max}"));
     }
 
@@ -604,6 +608,18 @@ mod tests {
         });
 
         assert_eq!(state_text(&snapshot), "SILVER 2 (47rr) - Solo 1/5");
+    }
+
+    #[test]
+    fn renders_duo_and_in_party_state() {
+        let mut snapshot = snapshot(MatchPhase::Menus);
+        snapshot.party.max_size = Some(5);
+
+        snapshot.party.size = Some(2);
+        assert_eq!(state_text(&snapshot), "Duo 2/5");
+
+        snapshot.party.size = Some(3);
+        assert_eq!(state_text(&snapshot), "In Party 3/5");
     }
 
     #[test]

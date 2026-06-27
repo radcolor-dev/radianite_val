@@ -128,7 +128,7 @@ function stateText(snapshot: LiveSnapshot): string {
   const size = snapshot.party.size
   if (size != null) {
     const max = snapshot.party.maxSize ?? size
-    const partyState = size > 1 ? "In Party" : "Solo"
+    const partyState = size === 1 ? "Solo" : size === 2 ? "Duo" : "In Party"
     parts.push(`${partyState} ${size}/${max}`)
   }
 
