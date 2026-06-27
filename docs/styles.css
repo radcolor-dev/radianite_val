@@ -41,6 +41,16 @@
 /* ===== Base ===== */
 * { box-sizing: border-box; }
 
+::selection {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+::-moz-selection {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
 html { scroll-behavior: smooth; }
 
 body {
