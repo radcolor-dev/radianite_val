@@ -64,6 +64,8 @@ export function LiveMatchHero({ snapshot }: { snapshot: LiveSnapshot | null }) {
     ? `${snapshot.score.ally} – ${snapshot.score.enemy}`
     : null
 
+  const standby = isLive ? null : standbyCopy(snapshot)
+
   return (
     <section className="relative flex flex-1 flex-col overflow-hidden rounded-xl border bg-card">
       <div className="relative min-h-[16rem] flex-1 overflow-hidden">
@@ -94,19 +96,32 @@ export function LiveMatchHero({ snapshot }: { snapshot: LiveSnapshot | null }) {
           </div>
         ) : null}
 
-        <div className="absolute right-6 top-1/2 -translate-y-1/2 text-right">
-          <AppIcon className="ml-auto size-10 rounded-lg opacity-90" />
-          {snapshot.mapName ? (
-            <>
-              <p className="mt-2 text-xs font-medium tracking-[0.3em] text-muted-foreground">
-                MAP
+        {standby ? (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 px-6 text-center">
+            <AppIcon className="size-10 rounded-lg opacity-80" />
+            <div>
+              <p className="flex items-center justify-center gap-2 text-base font-semibold">
+                <span className="size-1.5 animate-pulse rounded-full bg-success" />
+                {standby.title}
               </p>
-              <p className="text-4xl font-bold tracking-wide text-foreground/90 uppercase">
-                {snapshot.mapName}
-              </p>
-            </>
-          ) : null}
-        </div>
+              <p className="text-sm text-muted-foreground">{standby.subtitle}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="absolute right-6 top-1/2 -translate-y-1/2 text-right">
+            <AppIcon className="ml-auto size-10 rounded-lg opacity-90" />
+            {snapshot.mapName ? (
+              <>
+                <p className="mt-2 text-xs font-medium tracking-[0.3em] text-muted-foreground">
+                  MAP
+                </p>
+                <p className="text-4xl font-bold tracking-wide text-foreground/90 uppercase">
+                  {snapshot.mapName}
+                </p>
+              </>
+            ) : null}
+          </div>
+        )}
       </div>
 
       <StatStrip
@@ -116,6 +131,29 @@ export function LiveMatchHero({ snapshot }: { snapshot: LiveSnapshot | null }) {
       />
     </section>
   )
+}
+
+function standbyCopy(snapshot: LiveSnapshot): {
+  title: string
+  subtitle: string
+} {
+  switch (snapshot.phase) {
+    case "matchmaking":
+      return {
+        title: "Finding a match…",
+        subtitle: "Sit tight — your live match will appear here.",
+      }
+    case "menus":
+      return {
+        title: "Connected · In Menus",
+        subtitle: "Start a match to see your map, agent, and score here.",
+      }
+    default:
+      return {
+        title: "Service is live",
+        subtitle: "Start a match to see your live match here.",
+      }
+  }
 }
 
 function StatStrip({
