@@ -3,10 +3,17 @@ use tauri::{AppHandle, Emitter, State};
 use crate::{
     app_state::AppState,
     riot::{
-        state::{CoreStatus, DiagnosticSnapshot, LiveSnapshot, OverlayStatus, RpcStatus},
+        state::{
+            AppSnapshot, CoreStatus, DiagnosticSnapshot, LiveSnapshot, OverlayStatus, RpcStatus,
+        },
         valorant_client::ValorantPresentation,
     },
 };
+
+#[tauri::command]
+pub async fn app_get_snapshot(state: State<'_, AppState>) -> Result<AppSnapshot, String> {
+    Ok(state.app_snapshot().await)
+}
 
 #[tauri::command]
 pub async fn riot_start_monitor(

@@ -10,8 +10,8 @@ use crate::{
     discord_rpc::{DiscordRpcManager, RpcConfig},
     riot::{
         state::{
-            now_timestamp, CoreStatus, CoreStatusKind, DiagnosticSnapshot, LiveSnapshot,
-            LocalizedMessage, MatchPhase, OverlayStatus, RpcStatus,
+            now_timestamp, AppSnapshot, CoreStatus, CoreStatusKind, DiagnosticSnapshot,
+            LiveSnapshot, LocalizedMessage, MatchPhase, OverlayStatus, RpcStatus,
         },
         valorant_client::{ValorantContentCache, ValorantPresentation},
         watcher::{run_monitor_loop, PollResult},
@@ -153,6 +153,21 @@ impl AppState {
 
     pub async fn overlay_status(&self) -> OverlayStatus {
         self.overlay_status.read().await.clone()
+    }
+
+    pub async fn app_snapshot(&self) -> AppSnapshot {
+        let (diagnostics, live_snapshot, rpc_status, overlay_status) = tokio::join!(
+            self.diagnostics(),
+            self.live_snapshot(),
+            self.rpc_status(),
+            self.overlay_status()
+        );
+        AppSnapshot {
+            diagnostics,
+            live_snapshot,
+            rpc_status,
+            overlay_status,
+        }
     }
 
     pub async fn set_overlay_status(&self, status: OverlayStatus) {
@@ -297,7 +312,7 @@ mod tests {
         LiveSnapshot, MatchPhase, PartySnapshot, PlayerIdentity, ScoreSnapshot,
     };
 
-    use super::assign_session_started_at;
+    use super::{assign_session_started_at, AppState};
 
     fn snapshot(phase: MatchPhase) -> LiveSnapshot {
         LiveSnapshot {
@@ -349,5 +364,18 @@ mod tests {
         assign_session_started_at(Some(&previous), &mut current);
 
         assert_ne!(current.session_started_at, previous.session_started_at);
+    }
+
+    #[tokio::test]
+    async fn bundles_frontend_state_into_one_snapshot() {
+        let state = AppState::new();
+        let snapshot = state.app_snapshot().await;
+
+        assert_eq!(
+            snapshot.diagnostics.status.kind,
+            crate::riot::state::CoreStatusKind::Disconnected
+        );
+        assert!(snapshot.live_snapshot.is_none());
+        assert!(!snapshot.overlay_status.enabled);
     }
 }

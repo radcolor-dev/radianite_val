@@ -178,6 +178,15 @@ pub struct LiveSnapshot {
     pub updated_at: String,
 }
 
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AppSnapshot {
+    pub diagnostics: DiagnosticSnapshot,
+    pub live_snapshot: Option<LiveSnapshot>,
+    pub rpc_status: RpcStatus,
+    pub overlay_status: OverlayStatus,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct DiagnosticSnapshot {

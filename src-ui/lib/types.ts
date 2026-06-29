@@ -143,6 +143,13 @@ export type Settings = {
   rpcLocale: string
 }
 
+export type AppSnapshot = {
+  diagnostics: DiagnosticSnapshot
+  liveSnapshot: LiveSnapshot | null
+  rpcStatus: RpcStatus
+  overlayStatus: OverlayStatus
+}
+
 export type SettingKey = keyof Settings
 
 export type LocalizedMessage = {

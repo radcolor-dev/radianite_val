@@ -77,6 +77,7 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            commands::app_get_snapshot,
             commands::riot_start_monitor,
             commands::riot_stop_monitor,
             commands::riot_get_diagnostics,

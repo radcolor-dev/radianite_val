@@ -16,6 +16,7 @@ import { toast } from "sonner"
 import i18n, { applyUiLocale, detectedLocale, resolveLocale } from "@/lib/i18n"
 
 import type {
+  AppSnapshot,
   CoreStatus,
   DiagnosticSnapshot,
   LiveSnapshot,
@@ -109,18 +110,12 @@ export function useRadianite() {
   const settingsStore = useRef<Store | null>(null)
 
   const refresh = useCallback(async () => {
-    const [nextDiagnostics, nextSnapshot, nextRpcStatus, nextOverlayStatus] =
-      await Promise.all([
-        invoke<DiagnosticSnapshot>("riot_get_diagnostics"),
-        invoke<LiveSnapshot | null>("riot_get_live_snapshot"),
-        invoke<RpcStatus>("discord_rpc_get_status"),
-        invoke<OverlayStatus>("overlay_get_status"),
-      ])
+    const next = await invoke<AppSnapshot>("app_get_snapshot")
 
-    setDiagnostics(nextDiagnostics)
-    setSnapshot(nextSnapshot)
-    setRpcStatus(nextRpcStatus)
-    setOverlayStatus(nextOverlayStatus)
+    setDiagnostics(next.diagnostics)
+    setSnapshot(next.liveSnapshot)
+    setRpcStatus(next.rpcStatus)
+    setOverlayStatus(next.overlayStatus)
     setLastSync(new Date())
   }, [])
 
@@ -355,7 +350,6 @@ export function useRadianite() {
       .catch(() => setAppVersion(null))
 
     runCommand(async () => {
-      await refresh()
       await invoke<CoreStatus>("riot_start_monitor")
     })
 
