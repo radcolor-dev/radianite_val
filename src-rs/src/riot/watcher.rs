@@ -326,7 +326,8 @@ impl PollingEventSource {
         self.refresh_content().await;
         diagnostics.client_version = self.client_version.clone();
 
-        let tokens = match self.entitlements_token(&local_client).await {
+        let (tokens_result, chat_session_result) = self.auth_context(&local_client).await;
+        let tokens = match tokens_result {
             Ok(tokens) => {
                 diagnostics.access_token_ready = !tokens.access_token.is_empty();
                 diagnostics.entitlement_token_ready = !tokens.entitlements_token.is_empty();
@@ -348,7 +349,7 @@ impl PollingEventSource {
             }
         };
 
-        let chat_session = match self.chat_session(&local_client).await {
+        let chat_session = match chat_session_result {
             Ok(session) => session,
             Err(err) => {
                 diagnostics.last_error = Some(err.to_string());
@@ -533,10 +534,7 @@ impl PollingEventSource {
         }
 
         let value = local_client.chat_session().await?;
-        self.cached_identity = Some(CachedIdentity {
-            fetched_at: Instant::now(),
-            value: value.clone(),
-        });
+        self.store_identity(value.clone());
         Ok(value)
     }
 
@@ -553,15 +551,65 @@ impl PollingEventSource {
         }
 
         let value = local_client.entitlements_token().await?;
+        self.store_credentials(value.clone());
+        Ok(value)
+    }
+
+    async fn auth_context(
+        &mut self,
+        local_client: &LocalClient,
+    ) -> (
+        Result<EntitlementsToken, super::local_client::LocalClientError>,
+        Result<ChatSession, super::local_client::LocalClientError>,
+    ) {
+        let now = Instant::now();
+        let cached_credentials = self
+            .cached_credentials
+            .as_ref()
+            .filter(|cached| now < cached.expires_at)
+            .map(|cached| cached.value.clone());
+        let cached_identity = self
+            .cached_identity
+            .as_ref()
+            .filter(|cached| cache_is_fresh(cached.fetched_at, now, IDENTITY_CACHE_TTL))
+            .map(|cached| cached.value.clone());
+
+        match (cached_credentials, cached_identity) {
+            (Some(credentials), Some(identity)) => (Ok(credentials), Ok(identity)),
+            (None, None) => {
+                let (credentials, identity) = tokio::join!(
+                    local_client.entitlements_token(),
+                    local_client.chat_session()
+                );
+                if let Ok(value) = &credentials {
+                    self.store_credentials(value.clone());
+                }
+                if let Ok(value) = &identity {
+                    self.store_identity(value.clone());
+                }
+                (credentials, identity)
+            }
+            (None, Some(identity)) => (self.entitlements_token(local_client).await, Ok(identity)),
+            (Some(credentials), None) => (Ok(credentials), self.chat_session(local_client).await),
+        }
+    }
+
+    fn store_credentials(&mut self, value: EntitlementsToken) {
         let ttl = credential_cache_ttl(
             &value.access_token,
             chrono::Utc::now().timestamp().max(0) as u64,
         );
         self.cached_credentials = Some(CachedCredentials {
             expires_at: Instant::now() + ttl,
-            value: value.clone(),
+            value,
         });
-        Ok(value)
+    }
+
+    fn store_identity(&mut self, value: ChatSession) {
+        self.cached_identity = Some(CachedIdentity {
+            fetched_at: Instant::now(),
+            value,
+        });
     }
 
     fn valorant_client(
@@ -1362,5 +1410,36 @@ mod tests {
             Some(fetched_at),
             fetched_at + std::time::Duration::from_secs(300)
         ));
+    }
+
+    #[test]
+    fn auth_context_stores_identity_and_credentials_independently() {
+        use crate::riot::local_client::{ChatSession, EntitlementsToken};
+
+        let mut source = super::PollingEventSource::new(ValorantContentCache::default());
+        source.store_identity(ChatSession {
+            puuid: Some("player".to_string()),
+            game_name: Some("Name".to_string()),
+            game_tag: Some("Tag".to_string()),
+        });
+        source.store_credentials(EntitlementsToken {
+            access_token: "not-a-jwt".to_string(),
+            entitlements_token: "entitlement".to_string(),
+        });
+
+        assert_eq!(
+            source
+                .cached_identity
+                .as_ref()
+                .and_then(|cached| cached.value.puuid.as_deref()),
+            Some("player")
+        );
+        assert_eq!(
+            source
+                .cached_credentials
+                .as_ref()
+                .map(|cached| cached.value.entitlements_token.as_str()),
+            Some("entitlement")
+        );
     }
 }
