@@ -204,11 +204,16 @@ impl AppState {
         map_id: Option<&str>,
         tier: Option<u32>,
     ) -> Result<ValorantPresentation, String> {
-        self.content_cache
+        let presentation = self
+            .content_cache
             .get(locale)
             .await
             .map(|content| content.presentation(agent_id, map_id, tier))
-            .map_err(|err| err.message)
+            .map_err(|err| err.message)?;
+        Ok(self
+            .content_cache
+            .cache_presentation_assets(presentation)
+            .await)
     }
 
     pub fn content_cache(&self) -> ValorantContentCache {
@@ -216,9 +221,9 @@ impl AppState {
     }
 
     pub fn configure_public_cache(&self, root: PathBuf, app_version: String) {
-        let _ = self
-            .public_cache
-            .set(PublicCacheContext::new(root, app_version));
+        let context = PublicCacheContext::new(root, app_version);
+        self.content_cache.configure_public_cache(context.clone());
+        let _ = self.public_cache.set(context);
     }
 
     pub fn public_cache_context(&self) -> Option<PublicCacheContext> {

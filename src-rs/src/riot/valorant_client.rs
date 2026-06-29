@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    fs,
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -10,12 +11,16 @@ use serde_json::Value;
 use tokio::sync::Mutex;
 
 use super::{
+    cache::PublicCacheContext,
     local_client::{EntitlementsToken, ExternalSessions},
     state::RankSnapshot,
 };
 
 const RIOT_CLIENT_PLATFORM: &str =
     "eyJwbGF0Zm9ybVR5cGUiOiJQQyIsInBsYXRmb3JtT1MiOiJXaW5kb3dzIiwicGxhdGZvcm1PU1ZlcnNpb24iOiIxMC4wLjE5MDQ1LjEuMjU2LjY0Yml0IiwicGxhdGZvcm1DaGlwc2V0IjoiVW5rbm93biJ9";
+const CONTENT_CACHE_SCHEMA: u8 = 1;
+const CONTENT_CACHE_TTL_SECONDS: i64 = 24 * 60 * 60;
+const MAX_ASSET_BYTES: usize = 10 * 1024 * 1024;
 
 #[derive(Debug, Clone)]
 pub struct ValorantHttpError {
@@ -214,14 +219,14 @@ pub async fn fetch_public_client_version() -> Result<String, ValorantHttpError> 
         .ok_or_else(|| ValorantHttpError::transport("client version is missing"))
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ValorantContent {
     agents: Vec<ContentAgent>,
     maps: Vec<ContentMap>,
     competitive_tiers: Vec<ContentCompetitiveTier>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct ContentAgent {
     uuid: String,
     display_name: String,
@@ -229,7 +234,7 @@ struct ContentAgent {
     full_portrait: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct ContentMap {
     map_url: String,
     display_name: String,
@@ -237,7 +242,7 @@ struct ContentMap {
     list_view_icon: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct ContentCompetitiveTier {
     tier: u32,
     name: String,
@@ -257,9 +262,27 @@ pub struct ValorantPresentation {
     pub rank_icon_url: Option<String>,
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct ValorantContentCache {
     inner: Arc<Mutex<HashMap<String, CachedValorantContent>>>,
+    public_cache: Arc<std::sync::OnceLock<PublicCacheContext>>,
+    asset_client: reqwest::Client,
+    asset_write: Arc<Mutex<()>>,
+}
+
+impl Default for ValorantContentCache {
+    fn default() -> Self {
+        Self {
+            inner: Arc::new(Mutex::new(HashMap::new())),
+            public_cache: Arc::new(std::sync::OnceLock::new()),
+            asset_client: reqwest::Client::builder()
+                .timeout(Duration::from_secs(8))
+                .user_agent("Radianite/0.1")
+                .build()
+                .unwrap_or_else(|_| reqwest::Client::new()),
+            asset_write: Arc::new(Mutex::new(())),
+        }
+    }
 }
 
 enum CachedValorantContent {
@@ -271,6 +294,10 @@ enum CachedValorantContent {
 }
 
 impl ValorantContentCache {
+    pub fn configure_public_cache(&self, context: PublicCacheContext) {
+        let _ = self.public_cache.set(context);
+    }
+
     pub async fn get(&self, locale: &str) -> Result<ValorantContent, ValorantHttpError> {
         let mut content = self.inner.lock().await;
         match content.get(locale) {
@@ -284,8 +311,26 @@ impl ValorantContentCache {
             _ => {}
         }
 
+        if let Some(cached) = self.public_cache.get().and_then(|context| {
+            load_cached_content(context, locale, chrono::Utc::now().timestamp())
+        }) {
+            content.insert(
+                locale.to_string(),
+                CachedValorantContent::Ready(cached.clone()),
+            );
+            return Ok(cached);
+        }
+
         match fetch_public_content_for_locale(locale).await {
             Ok(fetched) => {
+                if let Some(context) = self.public_cache.get() {
+                    let _ = store_cached_content(
+                        context,
+                        locale,
+                        &fetched,
+                        chrono::Utc::now().timestamp(),
+                    );
+                }
                 content.insert(
                     locale.to_string(),
                     CachedValorantContent::Ready(fetched.clone()),
@@ -303,6 +348,128 @@ impl ValorantContentCache {
                 Err(err)
             }
         }
+    }
+
+    pub async fn cache_presentation_assets(
+        &self,
+        mut presentation: ValorantPresentation,
+    ) -> ValorantPresentation {
+        let Some(context) = self.public_cache.get() else {
+            return presentation;
+        };
+
+        let (agent_icon, agent_portrait, map_splash, map_list, rank_icon) = tokio::join!(
+            self.cache_asset(context, presentation.agent_icon_url.as_deref()),
+            self.cache_asset(context, presentation.agent_portrait_url.as_deref()),
+            self.cache_asset(context, presentation.map_splash_url.as_deref()),
+            self.cache_asset(context, presentation.map_list_view_icon_url.as_deref()),
+            self.cache_asset(context, presentation.rank_icon_url.as_deref()),
+        );
+        presentation.agent_icon_url = agent_icon.or(presentation.agent_icon_url);
+        presentation.agent_portrait_url = agent_portrait.or(presentation.agent_portrait_url);
+        presentation.map_splash_url = map_splash.or(presentation.map_splash_url);
+        presentation.map_list_view_icon_url = map_list.or(presentation.map_list_view_icon_url);
+        presentation.rank_icon_url = rank_icon.or(presentation.rank_icon_url);
+        presentation
+    }
+
+    async fn cache_asset(&self, context: &PublicCacheContext, url: Option<&str>) -> Option<String> {
+        let url = url?;
+        let extension = asset_extension(url)?;
+        let directory = context.root().join("assets");
+        let path = directory.join(format!("{:016x}.{extension}", stable_asset_key(url)));
+        if path.metadata().is_ok_and(|metadata| metadata.len() > 0) {
+            return Some(path.display().to_string());
+        }
+
+        let response = self.asset_client.get(url).send().await.ok()?;
+        if !response.status().is_success() {
+            return None;
+        }
+        let bytes = response.bytes().await.ok()?;
+        if bytes.is_empty() || bytes.len() > MAX_ASSET_BYTES {
+            return None;
+        }
+
+        let _write = self.asset_write.lock().await;
+        if path.metadata().is_err() {
+            fs::create_dir_all(&directory).ok()?;
+            fs::write(&path, &bytes).ok()?;
+        }
+        Some(path.display().to_string())
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CachedContentFile {
+    schema: u8,
+    app_version: String,
+    fetched_at: i64,
+    content: ValorantContent,
+}
+
+fn content_cache_path(context: &PublicCacheContext, locale: &str) -> Option<std::path::PathBuf> {
+    locale
+        .chars()
+        .all(|character| character.is_ascii_alphanumeric() || character == '-')
+        .then(|| context.root().join(format!("content-{locale}-v1.json")))
+}
+
+fn load_cached_content(
+    context: &PublicCacheContext,
+    locale: &str,
+    now: i64,
+) -> Option<ValorantContent> {
+    let raw = fs::read(content_cache_path(context, locale)?).ok()?;
+    let cached = serde_json::from_slice::<CachedContentFile>(&raw).ok()?;
+    let age = now.checked_sub(cached.fetched_at)?;
+    (cached.schema == CONTENT_CACHE_SCHEMA
+        && cached.app_version == context.app_version()
+        && (0..CONTENT_CACHE_TTL_SECONDS).contains(&age))
+    .then_some(cached.content)
+}
+
+fn store_cached_content(
+    context: &PublicCacheContext,
+    locale: &str,
+    content: &ValorantContent,
+    fetched_at: i64,
+) -> Result<(), String> {
+    let path = content_cache_path(context, locale)
+        .ok_or_else(|| "invalid locale for public content cache".to_string())?;
+    fs::create_dir_all(context.root())
+        .map_err(|err| format!("failed to create public cache: {err}"))?;
+    let cached = CachedContentFile {
+        schema: CONTENT_CACHE_SCHEMA,
+        app_version: context.app_version().to_string(),
+        fetched_at,
+        content: content.clone(),
+    };
+    let raw = serde_json::to_vec(&cached)
+        .map_err(|err| format!("failed to encode public content cache: {err}"))?;
+    fs::write(path, raw).map_err(|err| format!("failed to write public content cache: {err}"))
+}
+
+fn stable_asset_key(value: &str) -> u64 {
+    value
+        .as_bytes()
+        .iter()
+        .fold(0xcbf29ce484222325, |hash, byte| {
+            (hash ^ u64::from(*byte)).wrapping_mul(0x100000001b3)
+        })
+}
+
+fn asset_extension(url: &str) -> Option<&'static str> {
+    let extension = url.split('?').next()?.rsplit('.').next()?;
+    if extension.eq_ignore_ascii_case("png") {
+        Some("png")
+    } else if extension.eq_ignore_ascii_case("jpg") || extension.eq_ignore_ascii_case("jpeg") {
+        Some("jpg")
+    } else if extension.eq_ignore_ascii_case("webp") {
+        Some("webp")
+    } else {
+        None
     }
 }
 
@@ -645,13 +812,17 @@ pub fn bool_path(value: &Value, path: &[&str]) -> Option<bool> {
 
 #[cfg(test)]
 mod tests {
+    use std::{fs, time::SystemTime};
+
     use serde_json::json;
 
     use super::{
-        active_season_id, build_valorant_http_client, extract_region_and_shard,
-        rank_from_competitive_updates, rank_from_mmr, ContentAgent, ContentCompetitiveTier,
-        ContentMap, ValorantClient, ValorantContent,
+        active_season_id, asset_extension, build_valorant_http_client, extract_region_and_shard,
+        load_cached_content, rank_from_competitive_updates, rank_from_mmr, stable_asset_key,
+        store_cached_content, ContentAgent, ContentCompetitiveTier, ContentMap, ValorantClient,
+        ValorantContent,
     };
+    use crate::riot::cache::PublicCacheContext;
     use crate::riot::local_client::EntitlementsToken;
     use crate::riot::local_client::{ExternalSession, LaunchConfiguration};
 
@@ -827,5 +998,46 @@ mod tests {
             .headers()
             .expect("headers")
             .contains_key("authorization"));
+    }
+
+    #[test]
+    fn public_content_disk_cache_expires_and_invalidates_on_update() {
+        let root = std::env::temp_dir().join(format!(
+            "radianite-content-cache-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .expect("clock should be valid")
+                .as_nanos()
+        ));
+        let context = PublicCacheContext::new(root.clone(), "1.0.0".to_string());
+        let content = ValorantContent {
+            agents: vec![ContentAgent {
+                uuid: "agent".to_string(),
+                display_name: "Cached Agent".to_string(),
+                display_icon: None,
+                full_portrait: None,
+            }],
+            maps: Vec::new(),
+            competitive_tiers: Vec::new(),
+        };
+        store_cached_content(&context, "en-US", &content, 1_000).expect("cache should write");
+
+        let loaded = load_cached_content(&context, "en-US", 1_001).expect("cache should load");
+        assert_eq!(loaded.agent_name("agent").as_deref(), Some("Cached Agent"));
+        let updated = PublicCacheContext::new(root.clone(), "2.0.0".to_string());
+        assert!(load_cached_content(&updated, "en-US", 1_001).is_none());
+        assert!(load_cached_content(&context, "en-US", 1_000 + 24 * 60 * 60).is_none());
+
+        fs::remove_dir_all(root).expect("cache fixture should be removed");
+    }
+
+    #[test]
+    fn asset_cache_keys_are_stable_and_reject_active_content() {
+        let url = "https://media.valorant-api.com/agents/test/displayicon.png?version=1";
+        assert_eq!(stable_asset_key(url), stable_asset_key(url));
+        assert_eq!(asset_extension(url), Some("png"));
+        assert_eq!(asset_extension("https://example.test/image.svg"), None);
+        assert_eq!(asset_extension("https://example.test/script.js"), None);
     }
 }

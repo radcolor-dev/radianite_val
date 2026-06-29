@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { invoke } from "@tauri-apps/api/core"
+import { convertFileSrc, invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
 import { getVersion } from "@tauri-apps/api/app"
 import { openUrl } from "@tauri-apps/plugin-opener"
@@ -89,6 +89,24 @@ const defaultSettings: Settings = {
 }
 
 const SETTINGS_STORE = "settings.json"
+
+function presentationAssetUrl(value?: string | null) {
+  if (!value || /^(?:https?:|data:)/i.test(value)) return value
+  return convertFileSrc(value)
+}
+
+function localizePresentationAssets(
+  presentation: ValorantPresentation,
+): ValorantPresentation {
+  return {
+    ...presentation,
+    agentIconUrl: presentationAssetUrl(presentation.agentIconUrl),
+    agentPortraitUrl: presentationAssetUrl(presentation.agentPortraitUrl),
+    mapSplashUrl: presentationAssetUrl(presentation.mapSplashUrl),
+    mapListViewIconUrl: presentationAssetUrl(presentation.mapListViewIconUrl),
+    rankIconUrl: presentationAssetUrl(presentation.rankIconUrl),
+  }
+}
 
 export function useRadianite() {
   const [diagnostics, setDiagnostics] =
@@ -444,7 +462,7 @@ export function useRadianite() {
       tier: snapshot.rank?.tier,
     })
       .then((nextPresentation) => {
-        if (active) setPresentation(nextPresentation)
+        if (active) setPresentation(localizePresentationAssets(nextPresentation))
       })
       .catch(() => {
         if (active) setPresentation(null)
