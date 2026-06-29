@@ -55,6 +55,7 @@ pub struct PollingEventSource {
     cached_lockfile: Option<CachedLockfile>,
     local_client: Option<LocalClient>,
     cached_sessions: Option<CachedSessions>,
+    cached_affinity: Option<CachedAffinity>,
     cached_rank: Option<RankSnapshot>,
     active_season_id: Option<String>,
     last_rank_fetch: Option<Instant>,
@@ -73,6 +74,12 @@ struct CachedLockfile {
 struct CachedSessions {
     fetched_at: Instant,
     value: SessionFetch,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CachedAffinity {
+    region: Option<String>,
+    shard: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -94,6 +101,7 @@ impl PollingEventSource {
             cached_lockfile: None,
             local_client: None,
             cached_sessions: None,
+            cached_affinity: None,
             cached_rank: None,
             active_season_id: None,
             last_rank_fetch: None,
@@ -211,6 +219,7 @@ impl PollingEventSource {
             .any(|product| product.eq_ignore_ascii_case("valorant"));
 
         if !diagnostics.valorant_session_present {
+            self.cached_affinity = None;
             return finish(
                 diagnostics,
                 None,
@@ -219,7 +228,7 @@ impl PollingEventSource {
             );
         }
 
-        let (region, shard) = extract_region_and_shard(&sessions);
+        let (region, shard) = self.affinity_for(&sessions);
         diagnostics.region = region.clone();
         diagnostics.shard = shard.clone();
 
@@ -380,6 +389,7 @@ impl PollingEventSource {
             self.local_client =
                 Some(LocalClient::from_lockfile(lockfile).map_err(|err| err.message)?);
             self.cached_sessions = None;
+            self.cached_affinity = None;
         }
 
         self.local_client
@@ -403,6 +413,19 @@ impl PollingEventSource {
             value: value.clone(),
         });
         Ok(value)
+    }
+
+    fn affinity_for(&mut self, sessions: &ExternalSessions) -> (Option<String>, Option<String>) {
+        if let Some(cached) = &self.cached_affinity {
+            return (cached.region.clone(), cached.shard.clone());
+        }
+
+        let (region, shard) = extract_region_and_shard(sessions);
+        self.cached_affinity = Some(CachedAffinity {
+            region: region.clone(),
+            shard: shard.clone(),
+        });
+        (region, shard)
     }
 
     async fn refresh_client_version(&mut self) {
@@ -846,8 +869,11 @@ mod tests {
     use serde_json::json;
 
     use super::{file_signature, match_phase, normalize_live_snapshot, session_cache_ttl};
-    use crate::riot::local_client::{ExternalSession, ExternalSessions};
     use crate::riot::state::{MatchPhase, PlayerIdentity};
+    use crate::riot::{
+        local_client::{ExternalSession, ExternalSessions, LaunchConfiguration},
+        valorant_client::ValorantContentCache,
+    };
 
     #[test]
     fn uses_nested_session_loop_state() {
@@ -932,5 +958,32 @@ mod tests {
             session_cache_ttl(&valorant),
             std::time::Duration::from_secs(10)
         );
+    }
+
+    #[test]
+    fn affinity_is_stable_for_the_active_valorant_session() {
+        let mut source = super::PollingEventSource::new(ValorantContentCache::default());
+        let mut sessions = ExternalSessions::new();
+        sessions.insert(
+            "valorant".to_string(),
+            ExternalSession {
+                product_id: Some("valorant".to_string()),
+                launch_configuration: Some(LaunchConfiguration {
+                    arguments: vec!["-ares-deployment=ap".to_string()],
+                }),
+            },
+        );
+        assert_eq!(source.affinity_for(&sessions).0.as_deref(), Some("ap"));
+
+        sessions
+            .get_mut("valorant")
+            .expect("session")
+            .launch_configuration = Some(LaunchConfiguration {
+            arguments: vec!["-ares-deployment=eu".to_string()],
+        });
+        assert_eq!(source.affinity_for(&sessions).0.as_deref(), Some("ap"));
+
+        source.cached_affinity = None;
+        assert_eq!(source.affinity_for(&sessions).0.as_deref(), Some("eu"));
     }
 }
