@@ -13,7 +13,7 @@ use tokio::{sync::oneshot, time::sleep};
 use crate::app_state::AppState;
 
 use super::{
-    local_client::{ExternalSessions, LocalClient, SessionFetch},
+    local_client::{ChatSession, ExternalSessions, LocalClient, SessionFetch},
     lockfile::{default_paths, LockfilePaths, RiotLockfile},
     state::{
         now_timestamp, CoreStatus, CoreStatusKind, DiagnosticSnapshot, LiveSnapshot,
@@ -25,6 +25,8 @@ use super::{
         ValorantContent, ValorantContentCache,
     },
 };
+
+const IDENTITY_CACHE_TTL: Duration = Duration::from_secs(300);
 
 #[derive(Debug, Clone)]
 pub struct PollResult {
@@ -56,6 +58,7 @@ pub struct PollingEventSource {
     local_client: Option<LocalClient>,
     cached_sessions: Option<CachedSessions>,
     cached_affinity: Option<CachedAffinity>,
+    cached_identity: Option<CachedIdentity>,
     cached_rank: Option<RankSnapshot>,
     active_season_id: Option<String>,
     last_rank_fetch: Option<Instant>,
@@ -82,6 +85,11 @@ struct CachedAffinity {
     shard: Option<String>,
 }
 
+struct CachedIdentity {
+    fetched_at: Instant,
+    value: ChatSession,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct FileSignature {
     len: u64,
@@ -102,6 +110,7 @@ impl PollingEventSource {
             local_client: None,
             cached_sessions: None,
             cached_affinity: None,
+            cached_identity: None,
             cached_rank: None,
             active_season_id: None,
             last_rank_fetch: None,
@@ -258,7 +267,7 @@ impl PollingEventSource {
             }
         };
 
-        let chat_session = match local_client.chat_session().await {
+        let chat_session = match self.chat_session(&local_client).await {
             Ok(session) => session,
             Err(err) => {
                 diagnostics.last_error = Some(err.to_string());
@@ -390,6 +399,7 @@ impl PollingEventSource {
                 Some(LocalClient::from_lockfile(lockfile).map_err(|err| err.message)?);
             self.cached_sessions = None;
             self.cached_affinity = None;
+            self.cached_identity = None;
         }
 
         self.local_client
@@ -426,6 +436,26 @@ impl PollingEventSource {
             shard: shard.clone(),
         });
         (region, shard)
+    }
+
+    async fn chat_session(
+        &mut self,
+        local_client: &LocalClient,
+    ) -> Result<ChatSession, super::local_client::LocalClientError> {
+        if let Some(cached) = self
+            .cached_identity
+            .as_ref()
+            .filter(|cached| cache_is_fresh(cached.fetched_at, Instant::now(), IDENTITY_CACHE_TTL))
+        {
+            return Ok(cached.value.clone());
+        }
+
+        let value = local_client.chat_session().await?;
+        self.cached_identity = Some(CachedIdentity {
+            fetched_at: Instant::now(),
+            value: value.clone(),
+        });
+        Ok(value)
     }
 
     async fn refresh_client_version(&mut self) {
@@ -514,6 +544,11 @@ fn session_cache_ttl(sessions: &ExternalSessions) -> Duration {
     } else {
         Duration::from_secs(3)
     }
+}
+
+fn cache_is_fresh(fetched_at: Instant, now: Instant, ttl: Duration) -> bool {
+    now.checked_duration_since(fetched_at)
+        .is_some_and(|age| age < ttl)
 }
 
 fn file_signature(path: &Path) -> Result<FileSignature, String> {
@@ -868,7 +903,10 @@ mod tests {
 
     use serde_json::json;
 
-    use super::{file_signature, match_phase, normalize_live_snapshot, session_cache_ttl};
+    use super::{
+        cache_is_fresh, file_signature, match_phase, normalize_live_snapshot, session_cache_ttl,
+        IDENTITY_CACHE_TTL,
+    };
     use crate::riot::state::{MatchPhase, PlayerIdentity};
     use crate::riot::{
         local_client::{ExternalSession, ExternalSessions, LaunchConfiguration},
@@ -985,5 +1023,20 @@ mod tests {
 
         source.cached_affinity = None;
         assert_eq!(source.affinity_for(&sessions).0.as_deref(), Some("eu"));
+    }
+
+    #[test]
+    fn identity_cache_expires_at_five_minutes() {
+        let fetched_at = std::time::Instant::now();
+        assert!(cache_is_fresh(
+            fetched_at,
+            fetched_at + IDENTITY_CACHE_TTL - std::time::Duration::from_secs(1),
+            IDENTITY_CACHE_TTL
+        ));
+        assert!(!cache_is_fresh(
+            fetched_at,
+            fetched_at + IDENTITY_CACHE_TTL,
+            IDENTITY_CACHE_TTL
+        ));
     }
 }
