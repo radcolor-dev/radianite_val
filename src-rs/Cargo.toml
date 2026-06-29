@@ -34,6 +34,7 @@ tauri-plugin-process = "2"
 tauri-plugin-store = "2"
 tauri-plugin-autostart = "2"
 tauri-plugin-prevent-default = { version = "5.0.2", features = ["platform-windows"] }
+tauri-plugin-single-instance = "2"
 
 [profile.release]
 codegen-units = 1
