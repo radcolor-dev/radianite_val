@@ -127,6 +127,7 @@ export type UpdaterState = {
 export type Settings = {
   runAtBoot: boolean
   minimizeToTray: boolean
+  enableRpcOnStart: boolean
   uiLocale: string
   rpcLocale: string
 }

@@ -145,8 +145,6 @@ function App() {
         overlay={r.overlayStatus}
         onCopyOverlay={r.copyOverlayUrl}
         onOpenOverlay={r.openOverlayUrl}
-        rpc={r.rpcStatus}
-        onToggleRpc={r.toggleRpc}
         busy={r.busy}
         appVersion={r.appVersion}
       />

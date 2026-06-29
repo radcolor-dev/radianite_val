@@ -81,6 +81,7 @@ const initialUpdaterState: UpdaterState = {
 const defaultSettings: Settings = {
   runAtBoot: false,
   minimizeToTray: true,
+  enableRpcOnStart: true,
   uiLocale: detectedLocale("ui"),
   rpcLocale: detectedLocale("rpc"),
 }
@@ -381,6 +382,9 @@ export function useRadianite() {
         const minimizeToTray =
           (await store.get<boolean>("minimizeToTray")) ??
           defaultSettings.minimizeToTray
+        const enableRpcOnStart =
+          (await store.get<boolean>("enableRpcOnStart")) ??
+          defaultSettings.enableRpcOnStart
         const uiLocale = resolveLocale(
           [(await store.get<string>("uiLocale")) ?? defaultSettings.uiLocale],
           "ui",
@@ -397,11 +401,22 @@ export function useRadianite() {
         await applyUiLocale(uiLocale)
         const [, rpc] = await Promise.all([
           invoke("localization_set_ui_locale", { locale: uiLocale }),
-          invoke<RpcStatus>("discord_rpc_set_locale", { locale: rpcLocale }),
+          (async () => {
+            await invoke<RpcStatus>("discord_rpc_set_locale", { locale: rpcLocale })
+            return invoke<RpcStatus>("discord_rpc_set_enabled", {
+              enabled: enableRpcOnStart,
+            })
+          })(),
         ])
 
         if (active) {
-          setSettings({ runAtBoot: autostartActive, minimizeToTray, uiLocale, rpcLocale })
+          setSettings({
+            runAtBoot: autostartActive,
+            minimizeToTray,
+            enableRpcOnStart,
+            uiLocale,
+            rpcLocale,
+          })
           setRpcStatus(rpc)
         }
 
@@ -411,6 +426,7 @@ export function useRadianite() {
         }
         await store.set("uiLocale", uiLocale)
         await store.set("rpcLocale", rpcLocale)
+        await store.set("enableRpcOnStart", enableRpcOnStart)
         await store.save()
       } catch (err) {
         toast.error(errorText(err))

@@ -18,9 +18,8 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { rpcLocales, uiLocales } from "@/lib/i18n"
-import { translateMessage } from "@/lib/localized-message"
 import { cn } from "@/lib/utils"
-import type { OverlayStatus, RpcStatus, SettingKey, Settings } from "@/lib/types"
+import type { OverlayStatus, SettingKey, Settings } from "@/lib/types"
 
 type TabId = "general" | "overlay" | "discord" | "donate" | "about"
 const NAV: Array<{ id: TabId; key: string; icon: Icon }> = [
@@ -52,8 +51,6 @@ type Props = {
   overlay: OverlayStatus
   onCopyOverlay: () => void
   onOpenOverlay: () => void
-  rpc: RpcStatus
-  onToggleRpc: () => void
   busy: boolean
   appVersion: string | null
 }
@@ -61,7 +58,7 @@ type Props = {
 export function SettingsDialog(props: Props) {
   const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState<TabId>("general")
-  const { open, onOpenChange, settings, onSetSetting, overlay, onCopyOverlay, onOpenOverlay, rpc, onToggleRpc, busy, appVersion } = props
+  const { open, onOpenChange, settings, onSetSetting, overlay, onCopyOverlay, onOpenOverlay, busy, appVersion } = props
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -98,7 +95,7 @@ export function SettingsDialog(props: Props) {
               <div className="flex flex-col gap-7 p-7">
                 {activeTab === "general" ? <GeneralPanel settings={settings} onSetSetting={onSetSetting} /> : null}
                 {activeTab === "overlay" ? <OverlayPanel overlay={overlay} onCopy={onCopyOverlay} onOpen={onOpenOverlay} /> : null}
-                {activeTab === "discord" ? <DiscordPanel settings={settings} onSetSetting={onSetSetting} rpc={rpc} onToggle={onToggleRpc} busy={busy} /> : null}
+                {activeTab === "discord" ? <DiscordPanel settings={settings} onSetSetting={onSetSetting} busy={busy} /> : null}
                 {activeTab === "about" ? <AboutPanel version={appVersion} /> : null}
               </div>
             </ScrollArea>
@@ -166,16 +163,18 @@ function OverlayPanel({ overlay, onCopy, onOpen }: { overlay: OverlayStatus; onC
   </>
 }
 
-function DiscordPanel({ settings, onSetSetting, rpc, onToggle, busy }: Pick<Props, "settings" | "onSetSetting" | "rpc" | "busy"> & { onToggle: () => void }) {
+function DiscordPanel({ settings, onSetSetting, busy }: Pick<Props, "settings" | "onSetSetting" | "busy">) {
   const { t } = useTranslation()
   return <>
     <PanelHeading title={t("settings.rpcTitle")} description={t("settings.rpcDescription")} />
     <div className="flex flex-col gap-3">
       <LocaleRow title={t("settings.rpcLanguage")} description={t("settings.rpcLanguageDescription")} value={settings.rpcLocale} kind="rpc" disabled={busy} onChange={(value) => onSetSetting("rpcLocale", value)} />
-      <label className="flex cursor-pointer items-center justify-between gap-4 rounded-lg border bg-background/40 px-4 py-3.5">
-        <span className="flex flex-col gap-1"><span className="text-xs font-medium text-foreground">{t("settings.enableRpc")}</span><span className="text-xs text-muted-foreground">{translateMessage(t, rpc.message)}</span></span>
-        <Switch checked={rpc.enabled} disabled={busy} onCheckedChange={onToggle} />
-      </label>
+      <SettingRow
+        title={t("settings.enableRpcOnStart")}
+        description={t("settings.enableRpcOnStartDescription")}
+        checked={settings.enableRpcOnStart}
+        onCheckedChange={(value) => onSetSetting("enableRpcOnStart", value)}
+      />
     </div>
   </>
 }
