@@ -6,6 +6,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use base64::{engine::general_purpose, Engine as _};
 use serde_json::Value;
 use tauri::{AppHandle, Emitter};
 use tokio::{sync::oneshot, time::sleep};
@@ -13,7 +14,7 @@ use tokio::{sync::oneshot, time::sleep};
 use crate::app_state::AppState;
 
 use super::{
-    local_client::{ChatSession, ExternalSessions, LocalClient, SessionFetch},
+    local_client::{ChatSession, EntitlementsToken, ExternalSessions, LocalClient, SessionFetch},
     lockfile::{default_paths, LockfilePaths, RiotLockfile},
     state::{
         now_timestamp, CoreStatus, CoreStatusKind, DiagnosticSnapshot, LiveSnapshot,
@@ -27,6 +28,9 @@ use super::{
 };
 
 const IDENTITY_CACHE_TTL: Duration = Duration::from_secs(300);
+const CREDENTIAL_CACHE_FALLBACK_TTL: Duration = Duration::from_secs(300);
+const CREDENTIAL_CACHE_MAX_TTL: Duration = Duration::from_secs(600);
+const CREDENTIAL_EXPIRY_MARGIN: u64 = 60;
 
 #[derive(Debug, Clone)]
 pub struct PollResult {
@@ -59,6 +63,7 @@ pub struct PollingEventSource {
     cached_sessions: Option<CachedSessions>,
     cached_affinity: Option<CachedAffinity>,
     cached_identity: Option<CachedIdentity>,
+    cached_credentials: Option<CachedCredentials>,
     cached_rank: Option<RankSnapshot>,
     active_season_id: Option<String>,
     last_rank_fetch: Option<Instant>,
@@ -90,6 +95,11 @@ struct CachedIdentity {
     value: ChatSession,
 }
 
+struct CachedCredentials {
+    expires_at: Instant,
+    value: EntitlementsToken,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct FileSignature {
     len: u64,
@@ -111,6 +121,7 @@ impl PollingEventSource {
             cached_sessions: None,
             cached_affinity: None,
             cached_identity: None,
+            cached_credentials: None,
             cached_rank: None,
             active_season_id: None,
             last_rank_fetch: None,
@@ -245,7 +256,7 @@ impl PollingEventSource {
         self.refresh_content().await;
         diagnostics.client_version = self.client_version.clone();
 
-        let tokens = match local_client.entitlements_token().await {
+        let tokens = match self.entitlements_token(&local_client).await {
             Ok(tokens) => {
                 diagnostics.access_token_ready = !tokens.access_token.is_empty();
                 diagnostics.entitlement_token_ready = !tokens.entitlements_token.is_empty();
@@ -400,6 +411,7 @@ impl PollingEventSource {
             self.cached_sessions = None;
             self.cached_affinity = None;
             self.cached_identity = None;
+            self.cached_credentials = None;
         }
 
         self.local_client
@@ -453,6 +465,30 @@ impl PollingEventSource {
         let value = local_client.chat_session().await?;
         self.cached_identity = Some(CachedIdentity {
             fetched_at: Instant::now(),
+            value: value.clone(),
+        });
+        Ok(value)
+    }
+
+    async fn entitlements_token(
+        &mut self,
+        local_client: &LocalClient,
+    ) -> Result<EntitlementsToken, super::local_client::LocalClientError> {
+        if let Some(cached) = self
+            .cached_credentials
+            .as_ref()
+            .filter(|cached| Instant::now() < cached.expires_at)
+        {
+            return Ok(cached.value.clone());
+        }
+
+        let value = local_client.entitlements_token().await?;
+        let ttl = credential_cache_ttl(
+            &value.access_token,
+            chrono::Utc::now().timestamp().max(0) as u64,
+        );
+        self.cached_credentials = Some(CachedCredentials {
+            expires_at: Instant::now() + ttl,
             value: value.clone(),
         });
         Ok(value)
@@ -549,6 +585,24 @@ fn session_cache_ttl(sessions: &ExternalSessions) -> Duration {
 fn cache_is_fresh(fetched_at: Instant, now: Instant, ttl: Duration) -> bool {
     now.checked_duration_since(fetched_at)
         .is_some_and(|age| age < ttl)
+}
+
+fn credential_cache_ttl(access_token: &str, now_unix: u64) -> Duration {
+    let expires_at = access_token
+        .split('.')
+        .nth(1)
+        .and_then(|payload| general_purpose::URL_SAFE_NO_PAD.decode(payload).ok())
+        .and_then(|payload| serde_json::from_slice::<Value>(&payload).ok())
+        .and_then(|payload| payload.get("exp").and_then(Value::as_u64));
+
+    expires_at
+        .and_then(|expires_at| {
+            expires_at.checked_sub(now_unix.saturating_add(CREDENTIAL_EXPIRY_MARGIN))
+        })
+        .map(Duration::from_secs)
+        .map(|ttl| ttl.min(CREDENTIAL_CACHE_MAX_TTL))
+        .filter(|ttl| !ttl.is_zero())
+        .unwrap_or(CREDENTIAL_CACHE_FALLBACK_TTL)
 }
 
 fn file_signature(path: &Path) -> Result<FileSignature, String> {
@@ -904,7 +958,8 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        cache_is_fresh, file_signature, match_phase, normalize_live_snapshot, session_cache_ttl,
+        cache_is_fresh, credential_cache_ttl, file_signature, match_phase, normalize_live_snapshot,
+        session_cache_ttl, CREDENTIAL_CACHE_FALLBACK_TTL, CREDENTIAL_CACHE_MAX_TTL,
         IDENTITY_CACHE_TTL,
     };
     use crate::riot::state::{MatchPhase, PlayerIdentity};
@@ -912,6 +967,7 @@ mod tests {
         local_client::{ExternalSession, ExternalSessions, LaunchConfiguration},
         valorant_client::ValorantContentCache,
     };
+    use base64::{engine::general_purpose, Engine as _};
 
     #[test]
     fn uses_nested_session_loop_state() {
@@ -1038,5 +1094,26 @@ mod tests {
             fetched_at + IDENTITY_CACHE_TTL,
             IDENTITY_CACHE_TTL
         ));
+    }
+
+    #[test]
+    fn credential_cache_respects_jwt_expiry_and_maximum() {
+        let payload = general_purpose::URL_SAFE_NO_PAD.encode(br#"{"exp":1300}"#);
+        let token = format!("header.{payload}.signature");
+        assert_eq!(
+            credential_cache_ttl(&token, 1_000),
+            std::time::Duration::from_secs(240)
+        );
+
+        let payload = general_purpose::URL_SAFE_NO_PAD.encode(br#"{"exp":9999}"#);
+        let token = format!("header.{payload}.signature");
+        assert_eq!(
+            credential_cache_ttl(&token, 1_000),
+            CREDENTIAL_CACHE_MAX_TTL
+        );
+        assert_eq!(
+            credential_cache_ttl("not-a-jwt", 1_000),
+            CREDENTIAL_CACHE_FALLBACK_TTL
+        );
     }
 }
