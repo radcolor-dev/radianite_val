@@ -359,14 +359,7 @@ export function useRadianite() {
       await invoke<CoreStatus>("riot_start_monitor")
     })
 
-    const refreshTimer = window.setInterval(() => {
-      refresh().catch((err) => {
-        toast.error(errorText(err))
-      })
-    }, 5000)
-
     return () => {
-      window.clearInterval(refreshTimer)
       unlistenCallbacks.forEach((unlisten) => unlisten())
     }
   }, [refresh, runCommand])
