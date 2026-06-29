@@ -47,6 +47,7 @@ pub trait EventSource {
 }
 
 pub struct PollingEventSource {
+    local_client: Option<LocalClient>,
     cached_rank: Option<RankSnapshot>,
     active_season_id: Option<String>,
     last_rank_fetch: Option<Instant>,
@@ -60,6 +61,7 @@ pub struct PollingEventSource {
 impl PollingEventSource {
     pub fn new(content_cache: ValorantContentCache) -> Self {
         Self {
+            local_client: None,
             cached_rank: None,
             active_season_id: None,
             last_rank_fetch: None,
@@ -133,7 +135,7 @@ impl PollingEventSource {
         diagnostics.lockfile_protocol = Some(lockfile.protocol.clone());
         diagnostics.lockfile_port_present = lockfile.port > 0;
 
-        let local_client = match LocalClient::from_lockfile(&lockfile) {
+        let local_client = match self.local_client_for(&lockfile) {
             Ok(client) => client,
             Err(err) => {
                 diagnostics.last_error = Some(err.to_string());
@@ -297,6 +299,21 @@ impl PollingEventSource {
         };
 
         finish(diagnostics, Some(live_snapshot), kind, message)
+    }
+
+    fn local_client_for(&mut self, lockfile: &RiotLockfile) -> Result<LocalClient, String> {
+        if self
+            .local_client
+            .as_ref()
+            .is_none_or(|client| !client.matches_lockfile(lockfile))
+        {
+            self.local_client =
+                Some(LocalClient::from_lockfile(lockfile).map_err(|err| err.message)?);
+        }
+
+        self.local_client
+            .clone()
+            .ok_or_else(|| "Riot local HTTP client could not be created".to_string())
     }
 
     async fn refresh_client_version(&mut self) {

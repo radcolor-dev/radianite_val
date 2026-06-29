@@ -45,6 +45,7 @@ impl std::error::Error for LocalClientError {}
 pub struct LocalClient {
     base_url: String,
     password: String,
+    lockfile_pid: u32,
     client: reqwest::Client,
 }
 
@@ -62,8 +63,15 @@ impl LocalClient {
         Ok(Self {
             base_url: format!("{}://127.0.0.1:{}", lockfile.protocol, lockfile.port),
             password: lockfile.password.clone(),
+            lockfile_pid: lockfile.pid,
             client,
         })
+    }
+
+    pub fn matches_lockfile(&self, lockfile: &RiotLockfile) -> bool {
+        self.lockfile_pid == lockfile.pid
+            && self.base_url == format!("{}://127.0.0.1:{}", lockfile.protocol, lockfile.port)
+            && self.password == lockfile.password
     }
 
     async fn get_json<T>(&self, path: &str) -> Result<(u16, T), LocalClientError>
@@ -205,7 +213,10 @@ struct ChatPresence {
 
 #[cfg(test)]
 mod tests {
-    use super::EntitlementsToken;
+    use std::path::PathBuf;
+
+    use super::{EntitlementsToken, LocalClient};
+    use crate::riot::lockfile::RiotLockfile;
 
     #[test]
     fn parses_entitlements_token_from_local_client_shape() {
@@ -221,5 +232,24 @@ mod tests {
 
         assert_eq!(parsed.access_token, "access.jwt");
         assert_eq!(parsed.entitlements_token, "entitlement.jwt");
+    }
+
+    #[test]
+    fn local_client_is_reusable_for_the_same_lockfile_session() {
+        let lockfile = RiotLockfile::parse(
+            PathBuf::from("lockfile"),
+            "Riot Client:1234:5678:secret:https",
+        )
+        .expect("lockfile should parse");
+        let client = LocalClient::from_lockfile(&lockfile).expect("client should build");
+
+        assert!(client.matches_lockfile(&lockfile));
+
+        let restarted = RiotLockfile::parse(
+            PathBuf::from("lockfile"),
+            "Riot Client:4321:8765:new-secret:https",
+        )
+        .expect("lockfile should parse");
+        assert!(!client.matches_lockfile(&restarted));
     }
 }
