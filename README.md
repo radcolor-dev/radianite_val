@@ -91,6 +91,8 @@ Created by **Shashank Baghel**.
 
 ## Contributors
 
+- **[OG Kush](https://github.com/OGKushhh)** — community RPC locale imports and attribution
+
 Contributions, feedback, ideas, and bug reports are welcome. If you contribute, feel free to add your name here in a future pull request.
 
 ## License
