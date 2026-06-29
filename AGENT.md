@@ -90,6 +90,18 @@ These instructions apply to the whole repository. If a deeper `AGENT.md` is adde
 - Do not create new top-level source directories unless the change genuinely needs a new ownership boundary.
 - Prefer the existing `@/` alias for imports from `src-ui`.
 
+## Rust vs TypeScript
+
+Over time we want more logic in Rust (`src-rs/`) and less in TypeScript (`src-ui/`). Rust stays in `src-rs/`; `src-ui/` remains TypeScript/React for the UI. This is not about building UI in Rust.
+
+Before writing code, decide where it belongs:
+
+- **Core logic** always lives in Rust.
+- **Heavy and medium logic** should land in Rust when practical; expose it to the UI through Tauri commands or events instead of reimplementing it in TypeScript.
+- **TypeScript** is for the UI layer: components, layout, user input, and thin glue that calls into Rust.
+
+This is not a rule to always pick Rust. Use judgment — if something is clearly view-only or trivial frontend wiring, keep it in TypeScript.
+
 ## Package And Tooling
 
 - Use Bun for JavaScript package management and scripts. The lockfile is `bun.lock`.
