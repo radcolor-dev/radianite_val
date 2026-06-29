@@ -45,6 +45,7 @@ function isBlockedProductionShortcut(event: KeyboardEvent) {
 function App() {
   const r = useRadianite()
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const initialized = !r.initializing
 
   useEffect(() => {
     if (!import.meta.env.PROD) {
@@ -87,77 +88,81 @@ function App() {
 
   return (
     <div className="app-enter flex h-screen flex-col bg-background text-foreground">
-      <TitleBar
-        status={r.diagnostics.status}
-        version={r.appVersion}
-        busy={r.busy}
-        onRefresh={r.refresh}
-        onStartMonitor={r.startMonitor}
-        onStopMonitor={r.stopMonitor}
-        onOpenSettings={() => setSettingsOpen(true)}
-      />
-
-      <main className="flex-1 overflow-y-auto p-3">
-        <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-3">
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1.6fr)_minmax(22rem,1fr)]">
-            <LiveMatchHero snapshot={r.snapshot} presentation={r.presentation} />
-
-            <div className="flex flex-col gap-3">
-              <CoreStatusCard diagnostics={r.diagnostics} />
-              <OverlayCard
-                overlay={r.overlayStatus}
-                onCopy={r.copyOverlayUrl}
-                onOpen={r.openOverlayUrl}
-              />
-            </div>
-          </div>
-
-          <div className="grid gap-3 lg:grid-cols-3">
-            <DiscordCard
-              rpc={r.rpcStatus}
-              snapshot={r.snapshot}
-              presentation={r.presentation}
-              busy={r.busy}
-              onToggle={r.toggleRpc}
-            />
-            <UpdatesCard
-              updater={r.updater}
-              version={r.appVersion}
-              canInstall={Boolean(r.availableUpdate)}
-              lastChecked={r.lastChecked}
-              onCheck={r.checkForUpdate}
-              onInstall={r.installAvailableUpdate}
-            />
-            <QuickInfoCard
-              overlay={r.overlayStatus}
-              rpc={r.rpcStatus}
-              snapshot={r.snapshot}
-              lastSync={r.lastSync}
-            />
-          </div>
-        </div>
-      </main>
-
-      <StatusBar
-        status={r.diagnostics.status}
-        lastSync={r.lastSync}
-        uptimeMs={r.uptimeMs}
-      />
-
-      {settingsOpen ? (
-        <Suspense fallback={null}>
-          <SettingsDialog
-            open
-            onOpenChange={setSettingsOpen}
-            settings={r.settings}
-            onSetSetting={r.setSetting}
-            overlay={r.overlayStatus}
-            onCopyOverlay={r.copyOverlayUrl}
-            onOpenOverlay={r.openOverlayUrl}
+      {initialized ? (
+        <>
+          <TitleBar
+            status={r.diagnostics.status}
+            version={r.appVersion}
             busy={r.busy}
-            appVersion={r.appVersion}
+            onRefresh={r.refresh}
+            onStartMonitor={r.startMonitor}
+            onStopMonitor={r.stopMonitor}
+            onOpenSettings={() => setSettingsOpen(true)}
           />
-        </Suspense>
+
+          <main className="flex-1 overflow-y-auto p-3">
+            <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-3">
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,1.6fr)_minmax(22rem,1fr)]">
+                <LiveMatchHero snapshot={r.snapshot} presentation={r.presentation} />
+
+                <div className="flex flex-col gap-3">
+                  <CoreStatusCard diagnostics={r.diagnostics} />
+                  <OverlayCard
+                    overlay={r.overlayStatus}
+                    onCopy={r.copyOverlayUrl}
+                    onOpen={r.openOverlayUrl}
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-3 lg:grid-cols-3">
+                <DiscordCard
+                  rpc={r.rpcStatus}
+                  snapshot={r.snapshot}
+                  presentation={r.presentation}
+                  busy={r.busy}
+                  onToggle={r.toggleRpc}
+                />
+                <UpdatesCard
+                  updater={r.updater}
+                  version={r.appVersion}
+                  canInstall={Boolean(r.availableUpdate)}
+                  lastChecked={r.lastChecked}
+                  onCheck={r.checkForUpdate}
+                  onInstall={r.installAvailableUpdate}
+                />
+                <QuickInfoCard
+                  overlay={r.overlayStatus}
+                  rpc={r.rpcStatus}
+                  snapshot={r.snapshot}
+                  lastSync={r.lastSync}
+                />
+              </div>
+            </div>
+          </main>
+
+          <StatusBar
+            status={r.diagnostics.status}
+            lastSync={r.lastSync}
+            uptimeMs={r.uptimeMs}
+          />
+
+          {settingsOpen ? (
+            <Suspense fallback={null}>
+              <SettingsDialog
+                open
+                onOpenChange={setSettingsOpen}
+                settings={r.settings}
+                onSetSetting={r.setSetting}
+                overlay={r.overlayStatus}
+                onCopyOverlay={r.copyOverlayUrl}
+                onOpenOverlay={r.openOverlayUrl}
+                busy={r.busy}
+                appVersion={r.appVersion}
+              />
+            </Suspense>
+          ) : null}
+        </>
       ) : null}
 
       <StartupVeil active={r.initializing} />

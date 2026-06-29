@@ -378,8 +378,14 @@ export function useRadianite() {
           .then((version) => { if (active) setAppVersion(version) })
           .catch(() => { if (active) setAppVersion(null) })
 
-        await invoke<CoreStatus>("riot_start_monitor")
-        if (active) await refresh()
+        const status = await invoke<CoreStatus>("riot_start_monitor")
+        if (active) {
+          setDiagnostics((current) => ({ ...current, status }))
+          setBackendReady(true)
+          void refresh().catch((err) => {
+            if (active) toast.error(errorText(err))
+          })
+        }
       } catch (err) {
         if (active) toast.error(errorText(err))
       } finally {
