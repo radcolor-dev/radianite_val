@@ -48,9 +48,9 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDRDNkE0OTAzRTFEMjMzNTMKUldSVE05TGhBMGxxVE83elZCUFkzWnU0MFg3NEF3VEhQRmNPTHZoejlPRU1uYnBibC8yZFU5cHgK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDU5QTQzNTJDQTZFRkM2RApSV1J0L0c3S1VrT2FCVFJkeWR6K1pKei92azlSdUVRZ2pIZXR1WVcwOHZ5SlludXF6UXFyU0I4SQo=",
       "endpoints": [
-        "https://github.com/radcolor-dev/radiante_val/releases/latest/download/latest.json"
+        "https://github.com/radcolor-dev/radianite_val/releases/latest/download/latest.json"
       ]
     }
   }

@@ -13,7 +13,7 @@ use crate::riot::{
 };
 
 const DEFAULT_DISCORD_APP_ID: &str = "1520041097945153566";
-const DEFAULT_GITHUB_URL: &str = "https://github.com/radcolor-dev/radiante_val";
+const DEFAULT_GITHUB_URL: &str = "https://github.com/radcolor-dev/radianite_val";
 
 #[derive(Debug, Clone)]
 pub struct RpcConfig {

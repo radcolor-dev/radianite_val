@@ -35,7 +35,7 @@
   /* ---- Resolve latest .exe from GitHub release ---- */
   var downloadLinks = document.querySelectorAll(".js-download");
   if (downloadLinks.length) {
-    fetch("https://api.github.com/repos/radcolor-dev/radiante_val/releases/latest", {
+    fetch("https://api.github.com/repos/radcolor-dev/radianite_val/releases/latest", {
       headers: { Accept: "application/vnd.github+json" }
     })
       .then(function (res) {
