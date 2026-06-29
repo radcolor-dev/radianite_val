@@ -87,6 +87,7 @@ pub struct PollingEventSource {
     cached_identity: Option<CachedIdentity>,
     cached_credentials: Option<CachedCredentials>,
     valorant_http_client: Option<reqwest::Client>,
+    phase_match_id: Option<PhaseMatchId>,
     cached_rank: Option<RankSnapshot>,
     active_season_id: Option<String>,
     last_rank_fetch: Option<Instant>,
@@ -123,6 +124,11 @@ struct CachedCredentials {
     value: EntitlementsToken,
 }
 
+struct PhaseMatchId {
+    phase: MatchPhase,
+    match_id: String,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct FileSignature {
     len: u64,
@@ -146,6 +152,7 @@ impl PollingEventSource {
             cached_identity: None,
             cached_credentials: None,
             valorant_http_client: None,
+            phase_match_id: None,
             cached_rank: None,
             active_season_id: None,
             last_rank_fetch: None,
@@ -357,7 +364,7 @@ impl PollingEventSource {
         if let Some(client) = valorant_client.as_ref() {
             self.refresh_rank(client, &puuid).await;
             live_snapshot.rank = self.cached_rank.clone();
-            enrich_phase(client, &puuid, &mut live_snapshot).await;
+            self.enrich_phase(client, &puuid, &mut live_snapshot).await;
         }
         if let Some(content) = &self.content {
             enrich_content_names(&mut live_snapshot, content);
@@ -535,6 +542,70 @@ impl PollingEventSource {
                 self.client_version.clone(),
             )
         })
+    }
+
+    async fn enrich_phase(
+        &mut self,
+        client: &ValorantClient,
+        puuid: &str,
+        snapshot: &mut LiveSnapshot,
+    ) {
+        let live_phase = matches!(
+            snapshot.phase,
+            MatchPhase::Pregame | MatchPhase::Ingame | MatchPhase::Range
+        );
+        if !live_phase {
+            self.phase_match_id = None;
+            return;
+        }
+
+        let match_id = if let Some(match_id) = snapshot.match_id.clone() {
+            self.phase_match_id = Some(PhaseMatchId {
+                phase: snapshot.phase.clone(),
+                match_id: match_id.clone(),
+            });
+            Some(match_id)
+        } else if let Some(cached) = self
+            .phase_match_id
+            .as_ref()
+            .filter(|cached| cached.phase == snapshot.phase)
+        {
+            Some(cached.match_id.clone())
+        } else {
+            self.fetch_match_id(client, puuid, &snapshot.phase).await
+        };
+
+        let Some(match_id) = match_id else {
+            return;
+        };
+        snapshot.match_id = Some(match_id.clone());
+
+        match snapshot.phase {
+            MatchPhase::Pregame => enrich_pregame_match(client, puuid, &match_id, snapshot).await,
+            MatchPhase::Ingame | MatchPhase::Range => {
+                enrich_coregame_match(client, puuid, &match_id, snapshot).await
+            }
+            _ => {}
+        }
+    }
+
+    async fn fetch_match_id(
+        &mut self,
+        client: &ValorantClient,
+        puuid: &str,
+        phase: &MatchPhase,
+    ) -> Option<String> {
+        let player = match phase {
+            MatchPhase::Pregame => client.pregame_player(puuid).await.ok(),
+            MatchPhase::Ingame | MatchPhase::Range => client.coregame_player(puuid).await.ok(),
+            _ => None,
+        }?;
+        let match_id = str_path(&player, &["MatchID"])?;
+        self.phase_match_id = Some(PhaseMatchId {
+            phase: phase.clone(),
+            match_id: match_id.clone(),
+        });
+        Some(match_id)
     }
 
     async fn refresh_client_version(&mut self) {
@@ -917,25 +988,13 @@ fn match_phase(presence: &Value) -> MatchPhase {
     }
 }
 
-async fn enrich_phase(client: &ValorantClient, puuid: &str, snapshot: &mut LiveSnapshot) {
-    match snapshot.phase {
-        MatchPhase::Pregame => enrich_pregame(client, puuid, snapshot).await,
-        MatchPhase::Ingame | MatchPhase::Range => enrich_coregame(client, puuid, snapshot).await,
-        _ => {}
-    }
-}
-
-async fn enrich_pregame(client: &ValorantClient, puuid: &str, snapshot: &mut LiveSnapshot) {
-    let Ok(player) = client.pregame_player(puuid).await else {
-        return;
-    };
-
-    let Some(match_id) = str_path(&player, &["MatchID"]) else {
-        return;
-    };
-    snapshot.match_id = Some(match_id.clone());
-
-    let Ok(match_data) = client.pregame_match(&match_id).await else {
+async fn enrich_pregame_match(
+    client: &ValorantClient,
+    puuid: &str,
+    match_id: &str,
+    snapshot: &mut LiveSnapshot,
+) {
+    let Ok(match_data) = client.pregame_match(match_id).await else {
         return;
     };
 
@@ -953,17 +1012,13 @@ async fn enrich_pregame(client: &ValorantClient, puuid: &str, snapshot: &mut Liv
     }
 }
 
-async fn enrich_coregame(client: &ValorantClient, puuid: &str, snapshot: &mut LiveSnapshot) {
-    let Ok(player) = client.coregame_player(puuid).await else {
-        return;
-    };
-
-    let Some(match_id) = str_path(&player, &["MatchID"]) else {
-        return;
-    };
-    snapshot.match_id = Some(match_id.clone());
-
-    let Ok(match_data) = client.coregame_match(&match_id).await else {
+async fn enrich_coregame_match(
+    client: &ValorantClient,
+    puuid: &str,
+    match_id: &str,
+    snapshot: &mut LiveSnapshot,
+) {
+    let Ok(match_data) = client.coregame_match(match_id).await else {
         return;
     };
 
@@ -1036,6 +1091,7 @@ mod tests {
     fn normalizes_party_and_score_fields() {
         let presence = json!({
             "sessionLoopState": "INGAME",
+            "matchPresenceData": { "matchId": "live-match" },
             "partySize": 2,
             "maxPartySize": 5,
             "partyAccessibility": "CLOSED",
@@ -1052,6 +1108,7 @@ mod tests {
         );
 
         assert_eq!(snapshot.party.size, Some(2));
+        assert_eq!(snapshot.match_id.as_deref(), Some("live-match"));
         assert_eq!(snapshot.score.expect("score").ally, 7);
     }
 
