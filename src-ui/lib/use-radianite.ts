@@ -125,6 +125,8 @@ export function useRadianite() {
   const [startedAt] = useState<number>(() => Date.now())
   const [uptimeMs, setUptimeMs] = useState(0)
   const [settings, setSettings] = useState<Settings>(defaultSettings)
+  const [backendReady, setBackendReady] = useState(false)
+  const [settingsReady, setSettingsReady] = useState(false)
   const settingsStore = useRef<Store | null>(null)
 
   const refresh = useCallback(async () => {
@@ -348,33 +350,50 @@ export function useRadianite() {
   }, [availableUpdate])
 
   useEffect(() => {
+    let active = true
     const unlistenCallbacks: Array<() => void> = []
 
-    listen<CoreStatus>("riot:status", (event) => {
-      setDiagnostics((current) => ({ ...current, status: event.payload }))
-    }).then((unlisten) => unlistenCallbacks.push(unlisten))
+    const initializeBackend = async () => {
+      try {
+        const listeners = await Promise.all([
+          listen<CoreStatus>("riot:status", (event) => {
+            setDiagnostics((current) => ({ ...current, status: event.payload }))
+          }),
+          listen<LiveSnapshot | null>("riot:snapshot", (event) => {
+            setSnapshot(event.payload)
+            setLastSync(new Date())
+          }),
+          listen<RpcStatus>("discord:status", (event) => {
+            setRpcStatus(event.payload)
+          }),
+        ])
 
-    listen<LiveSnapshot | null>("riot:snapshot", (event) => {
-      setSnapshot(event.payload)
-      setLastSync(new Date())
-    }).then((unlisten) => unlistenCallbacks.push(unlisten))
+        if (!active) {
+          listeners.forEach((unlisten) => unlisten())
+          return
+        }
+        unlistenCallbacks.push(...listeners)
 
-    listen<RpcStatus>("discord:status", (event) => {
-      setRpcStatus(event.payload)
-    }).then((unlisten) => unlistenCallbacks.push(unlisten))
+        void getVersion()
+          .then((version) => { if (active) setAppVersion(version) })
+          .catch(() => { if (active) setAppVersion(null) })
 
-    getVersion()
-      .then(setAppVersion)
-      .catch(() => setAppVersion(null))
+        await invoke<CoreStatus>("riot_start_monitor")
+        if (active) await refresh()
+      } catch (err) {
+        if (active) toast.error(errorText(err))
+      } finally {
+        if (active) setBackendReady(true)
+      }
+    }
 
-    runCommand(async () => {
-      await invoke<CoreStatus>("riot_start_monitor")
-    })
+    void initializeBackend()
 
     return () => {
+      active = false
       unlistenCallbacks.forEach((unlisten) => unlisten())
     }
-  }, [refresh, runCommand])
+  }, [refresh])
 
   useEffect(() => {
     let active = true
@@ -384,20 +403,23 @@ export function useRadianite() {
         const store = await load(SETTINGS_STORE)
         settingsStore.current = store
 
-        const runAtBoot =
-          (await store.get<boolean>("runAtBoot")) ?? defaultSettings.runAtBoot
-        const minimizeToTray =
-          (await store.get<boolean>("minimizeToTray")) ??
-          defaultSettings.minimizeToTray
-        const enableRpcOnStart =
-          (await store.get<boolean>("enableRpcOnStart")) ??
-          defaultSettings.enableRpcOnStart
+        const [storedRunAtBoot, storedMinimizeToTray, storedEnableRpc, storedUiLocale, storedRpcLocale] =
+          await Promise.all([
+            store.get<boolean>("runAtBoot"),
+            store.get<boolean>("minimizeToTray"),
+            store.get<boolean>("enableRpcOnStart"),
+            store.get<string>("uiLocale"),
+            store.get<string>("rpcLocale"),
+          ])
+        const runAtBoot = storedRunAtBoot ?? defaultSettings.runAtBoot
+        const minimizeToTray = storedMinimizeToTray ?? defaultSettings.minimizeToTray
+        const enableRpcOnStart = storedEnableRpc ?? defaultSettings.enableRpcOnStart
         const uiLocale = resolveLocale(
-          [(await store.get<string>("uiLocale")) ?? defaultSettings.uiLocale],
+          [storedUiLocale ?? defaultSettings.uiLocale],
           "ui",
         )
         const rpcLocale = resolveLocale(
-          [(await store.get<string>("rpcLocale")) ?? defaultSettings.rpcLocale],
+          [storedRpcLocale ?? defaultSettings.rpcLocale],
           "rpc",
         )
 
@@ -406,16 +428,6 @@ export function useRadianite() {
         )
 
         await applyUiLocale(uiLocale)
-        const [, rpc] = await Promise.all([
-          invoke("localization_set_ui_locale", { locale: uiLocale }),
-          (async () => {
-            await invoke<RpcStatus>("discord_rpc_set_locale", { locale: rpcLocale })
-            return invoke<RpcStatus>("discord_rpc_set_enabled", {
-              enabled: enableRpcOnStart,
-            })
-          })(),
-        ])
-
         if (active) {
           setSettings({
             runAtBoot: autostartActive,
@@ -424,19 +436,34 @@ export function useRadianite() {
             uiLocale,
             rpcLocale,
           })
-          setRpcStatus(rpc)
+          setSettingsReady(true)
         }
 
-        if (autostartActive !== runAtBoot) {
-          await store.set("runAtBoot", autostartActive)
-          await store.save()
-        }
-        await store.set("uiLocale", uiLocale)
-        await store.set("rpcLocale", rpcLocale)
-        await store.set("enableRpcOnStart", enableRpcOnStart)
+        void Promise.all([
+          invoke("localization_set_ui_locale", { locale: uiLocale }),
+          (async () => {
+            await invoke<RpcStatus>("discord_rpc_set_locale", { locale: rpcLocale })
+            return invoke<RpcStatus>("discord_rpc_set_enabled", {
+              enabled: enableRpcOnStart,
+            })
+          })(),
+        ]).then(([, rpc]) => {
+          if (active) setRpcStatus(rpc)
+        }).catch((err) => {
+          if (active) toast.error(errorText(err))
+        })
+
+        await Promise.all([
+          store.set("runAtBoot", autostartActive),
+          store.set("uiLocale", uiLocale),
+          store.set("rpcLocale", rpcLocale),
+          store.set("enableRpcOnStart", enableRpcOnStart),
+        ])
         await store.save()
       } catch (err) {
-        toast.error(errorText(err))
+        if (active) toast.error(errorText(err))
+      } finally {
+        if (active) setSettingsReady(true)
       }
     }
 
@@ -494,6 +521,7 @@ export function useRadianite() {
     lastChecked,
     uptimeMs,
     settings,
+    initializing: !backendReady || !settingsReady,
     setSetting,
     refresh: () => runCommand(refresh),
     startMonitor,

@@ -4,11 +4,35 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/app-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      html, body, #root { margin: 0; min-height: 100%; background: #202024; }
+      .boot-shell { position: fixed; inset: 0; display: grid; place-items: center; overflow: hidden; background: #202024; color: #f4f4f5; font-family: system-ui, sans-serif; }
+      .boot-shell::before { content: ""; position: absolute; width: 24rem; height: 24rem; border-radius: 50%; background: radial-gradient(circle, rgb(214 55 45 / 16%), transparent 68%); animation: boot-breathe 2.4s ease-in-out infinite; }
+      .boot-card { position: relative; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+      .boot-icon-wrap { position: relative; display: grid; width: 88px; height: 88px; place-items: center; }
+      .boot-icon-wrap::before { content: ""; position: absolute; inset: 0; border: 1px solid rgb(214 55 45 / 26%); border-top-color: #e05a50; border-radius: 50%; animation: boot-spin 1.8s linear infinite; }
+      .boot-icon { width: 56px; height: 56px; border-radius: 12px; filter: drop-shadow(0 14px 24px rgb(0 0 0 / 35%)); }
+      .boot-title { margin: 0; font-size: 18px; font-weight: 650; letter-spacing: -0.02em; }
+      .boot-track { width: 160px; height: 2px; overflow: hidden; border-radius: 999px; background: rgb(255 255 255 / 8%); }
+      .boot-track::after { content: ""; display: block; width: 45%; height: 100%; background: linear-gradient(90deg, transparent, #dc493f, transparent); animation: boot-progress 1.35s ease-in-out infinite; }
+      @keyframes boot-spin { to { transform: rotate(360deg); } }
+      @keyframes boot-breathe { 50% { transform: scale(1.08); opacity: .7; } }
+      @keyframes boot-progress { from { transform: translateX(-120%); } to { transform: translateX(240%); } }
+      @media (prefers-reduced-motion: reduce) { .boot-shell::before, .boot-icon-wrap::before, .boot-track::after { animation: none; } }
+    </style>
     <title>Radianite</title>
   </head>
 
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="boot-shell" aria-label="Starting Radianite">
+        <div class="boot-card">
+          <div class="boot-icon-wrap"><img class="boot-icon" src="/app-icon.png" alt="" /></div>
+          <p class="boot-title">Radianite</p>
+          <div class="boot-track"></div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src-ui/main.tsx"></script>
   </body>
 </html>

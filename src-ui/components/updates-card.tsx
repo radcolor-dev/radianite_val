@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { lazy, Suspense, useState } from "react"
 import { useTranslation } from "react-i18next"
 import {
   IconCalendarEvent,
@@ -13,11 +13,16 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { Panel } from "@/components/panel"
-import { ReleaseNotesDialog } from "@/components/release-notes-dialog"
 import { formatDate, formatTime } from "@/lib/format"
 import { translateMessage } from "@/lib/localized-message"
 import { cn } from "@/lib/utils"
 import type { UpdaterState } from "@/lib/types"
+
+const ReleaseNotesDialog = lazy(() =>
+  import("@/components/release-notes-dialog").then((module) => ({
+    default: module.ReleaseNotesDialog,
+  })),
+)
 
 export function UpdatesCard({ updater, version, canInstall, lastChecked, onCheck, onInstall }: {
   updater: UpdaterState
@@ -57,12 +62,16 @@ export function UpdatesCard({ updater, version, canInstall, lastChecked, onCheck
           <Button size="sm" onClick={onInstall} disabled={!canInstall || checking}><IconDownload data-icon="inline-start" />{t("updates.install")}</Button>
         </div>
       </div>
-      <ReleaseNotesDialog
-        open={selectedRelease !== null}
-        onOpenChange={(open) => { if (!open) setSelectedRelease(null) }}
-        fetchFromGitHub={selectedRelease === "current"}
-        release={selectedRelease === "latest" ? { version: updater.version ?? "", body: updater.body, date: updater.date } : selectedRelease === "current" ? { version: current } : null}
-      />
+      {selectedRelease !== null ? (
+        <Suspense fallback={null}>
+          <ReleaseNotesDialog
+            open
+            onOpenChange={(open) => { if (!open) setSelectedRelease(null) }}
+            fetchFromGitHub={selectedRelease === "current"}
+            release={selectedRelease === "latest" ? { version: updater.version ?? "", body: updater.body, date: updater.date } : { version: current }}
+          />
+        </Suspense>
+      ) : null}
     </Panel>
   )
 }

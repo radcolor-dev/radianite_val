@@ -15,6 +15,9 @@
     "unknown": "Unknown",
     "notAvailable": "—"
   },
+  "startup": {
+    "preparing": "Preparing your match companion..."
+  },
   "titleBar": {
     "openSettings": "Open settings",
     "refresh": "Refresh",

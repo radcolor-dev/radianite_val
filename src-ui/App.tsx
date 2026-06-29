@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { lazy, Suspense, useEffect, useState } from "react"
 
 import { TitleBar } from "@/components/title-bar"
 import { LiveMatchHero } from "@/components/live-match-hero"
@@ -8,9 +8,15 @@ import { DiscordCard } from "@/components/discord-card"
 import { UpdatesCard } from "@/components/updates-card"
 import { QuickInfoCard } from "@/components/quick-info-card"
 import { StatusBar } from "@/components/status-bar"
-import { SettingsDialog } from "@/components/settings-dialog"
+import { StartupVeil } from "@/components/startup-veil"
 import { useRadianite } from "@/lib/use-radianite"
 import "./App.css"
+
+const SettingsDialog = lazy(() =>
+  import("@/components/settings-dialog").then((module) => ({
+    default: module.SettingsDialog,
+  })),
+)
 
 function isEditableTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) {
@@ -80,7 +86,7 @@ function App() {
   }, [])
 
   return (
-    <div className="flex h-screen flex-col bg-background text-foreground">
+    <div className="app-enter flex h-screen flex-col bg-background text-foreground">
       <TitleBar
         status={r.diagnostics.status}
         version={r.appVersion}
@@ -138,17 +144,23 @@ function App() {
         uptimeMs={r.uptimeMs}
       />
 
-      <SettingsDialog
-        open={settingsOpen}
-        onOpenChange={setSettingsOpen}
-        settings={r.settings}
-        onSetSetting={r.setSetting}
-        overlay={r.overlayStatus}
-        onCopyOverlay={r.copyOverlayUrl}
-        onOpenOverlay={r.openOverlayUrl}
-        busy={r.busy}
-        appVersion={r.appVersion}
-      />
+      {settingsOpen ? (
+        <Suspense fallback={null}>
+          <SettingsDialog
+            open
+            onOpenChange={setSettingsOpen}
+            settings={r.settings}
+            onSetSetting={r.setSetting}
+            overlay={r.overlayStatus}
+            onCopyOverlay={r.copyOverlayUrl}
+            onOpenOverlay={r.openOverlayUrl}
+            busy={r.busy}
+            appVersion={r.appVersion}
+          />
+        </Suspense>
+      ) : null}
+
+      <StartupVeil active={r.initializing} />
     </div>
   )
 }

@@ -149,6 +149,57 @@
   will-change: opacity, transform;
 }
 
+.app-enter {
+  animation: app-enter 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.startup-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.15rem;
+  overflow: hidden;
+  background: oklch(0.145 0.012 264 / 96%);
+  transition: opacity 320ms cubic-bezier(0.22, 1, 0.36, 1), visibility 320ms;
+}
+
+.startup-veil-visible { visibility: visible; opacity: 1; }
+.startup-veil-hidden { pointer-events: none; visibility: hidden; opacity: 0; }
+
+.startup-glow {
+  position: absolute;
+  width: 24rem;
+  height: 24rem;
+  border-radius: 9999px;
+  background: radial-gradient(circle, oklch(0.58 0.225 25 / 18%), transparent 68%);
+  animation: startup-breathe 2.4s ease-in-out infinite;
+}
+
+.startup-mark { position: relative; display: grid; width: 5.5rem; height: 5.5rem; place-items: center; }
+.startup-orbit { position: absolute; inset: 0; border: 1px solid oklch(0.58 0.225 25 / 24%); border-top-color: oklch(0.68 0.22 25 / 90%); border-radius: 9999px; animation: startup-spin 1.8s linear infinite; }
+.startup-progress { width: 10rem; height: 2px; overflow: hidden; border-radius: 9999px; background: oklch(1 0 0 / 8%); }
+.startup-progress span { display: block; width: 45%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, transparent, var(--primary), transparent); animation: startup-progress 1.35s ease-in-out infinite; }
+.startup-dots { display: flex; gap: 0.35rem; }
+.startup-dots span { width: 0.25rem; height: 0.25rem; border-radius: 9999px; background: var(--muted-foreground); animation: startup-dot 1.2s ease-in-out infinite; }
+.startup-dots span:nth-child(2) { animation-delay: 120ms; }
+.startup-dots span:nth-child(3) { animation-delay: 240ms; }
+
+@keyframes app-enter {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes page-fade-in {
   from {
     opacity: 0;
@@ -161,12 +212,24 @@
   }
 }
 
+@keyframes startup-spin { to { transform: rotate(360deg); } }
+@keyframes startup-breathe { 50% { transform: scale(1.08); opacity: 0.7; } }
+@keyframes startup-progress { from { transform: translateX(-120%); } to { transform: translateX(240%); } }
+@keyframes startup-dot { 0%, 60%, 100% { opacity: 0.3; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-2px); } }
+
 @media (prefers-reduced-motion: reduce) {
-  .page-transition {
+  .app-enter,
+  .page-transition,
+  .startup-glow,
+  .startup-orbit,
+  .startup-progress span,
+  .startup-dots span {
     animation: none;
     transform: none;
     will-change: auto;
   }
+
+  .startup-veil { transition-duration: 1ms; }
 }
 
 html[data-app-hardened="true"],
