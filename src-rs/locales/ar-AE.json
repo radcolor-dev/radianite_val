@@ -1,1 +1,23 @@
-{}
+{
+  "_version": 1,
+  "rpc.phase.menu": "%{mode} / القائمة",
+  "rpc.phase.queue": "%{mode} / طابور",
+  "rpc.phase.pregame": "%{mode} / إختيار عميل",
+  "rpc.party.solo": "فردي %{size}/%{max}",
+  "rpc.party.group": "في بارتي %{size}/%{max}",
+  "rpc.state.rank": "%{rank} (%{rr}rr)",
+  "rpc.mode.competitive": "تنافسي",
+  "rpc.mode.unrated": "غير مصنف",
+  "rpc.mode.spikerush": "سبايك راش",
+  "rpc.mode.deathmatch": "مبارات الموت",
+  "rpc.mode.ggteam": "تصعيد",
+  "rpc.mode.onefa": "إستنساخ",
+  "rpc.mode.custom": "مخصص",
+  "rpc.mode.snowball": "كرات الثلج",
+  "rpc.mode.swiftplay": "سويفت بلاي",
+  "rpc.mode.hurm": "ديثماتش الفريق",
+  "rpc.mode.retake": "استعادة",
+  "rpc.mode.skirmish": "اشتباك",
+  "rpc.mode.newmap": "خريطة جديدة",
+  "rpc.mode.aros": "موقع عشوائي"
+}

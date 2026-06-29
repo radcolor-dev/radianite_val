@@ -1,0 +1,23 @@
+{
+  "_version": 1,
+  "rpc.phase.menu": "%{mode} / Meny",
+  "rpc.phase.queue": "%{mode} / Kö",
+  "rpc.phase.pregame": "%{mode} / Väljer",
+  "rpc.party.solo": "Solo %{size}/%{max}",
+  "rpc.party.group": "I ett sällskap %{size}/%{max}",
+  "rpc.state.rank": "%{rank} (%{rr}rr)",
+  "rpc.mode.competitive": "Rankad",
+  "rpc.mode.unrated": "Orankad",
+  "rpc.mode.spikerush": "Spike Rush",
+  "rpc.mode.deathmatch": "Deathmatch",
+  "rpc.mode.ggteam": "Eskalation",
+  "rpc.mode.onefa": "Replikation",
+  "rpc.mode.custom": "Anpassat spel",
+  "rpc.mode.snowball": "Snöbollskamp",
+  "rpc.mode.swiftplay": "Snabbspel",
+  "rpc.mode.hurm": "Lagdeathmatch",
+  "rpc.mode.retake": "Återta",
+  "rpc.mode.skirmish": "Skärmytsling",
+  "rpc.mode.newmap": "Ny karta",
+  "rpc.mode.aros": "Slumpmässig plats"
+}

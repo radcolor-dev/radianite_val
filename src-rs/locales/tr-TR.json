@@ -1,1 +1,23 @@
-{}
+{
+  "_version": 1,
+  "rpc.phase.menu": "%{mode} / Menü",
+  "rpc.phase.queue": "%{mode} / Sırada",
+  "rpc.phase.pregame": "%{mode} / Ajan Seçiyor",
+  "rpc.party.solo": "Solo %{size}/%{max}",
+  "rpc.party.group": "Takımda %{size}/%{max}",
+  "rpc.state.rank": "%{rank} (%{rr}kp)",
+  "rpc.mode.competitive": "Rekabete Dayalı",
+  "rpc.mode.unrated": "Derecesiz",
+  "rpc.mode.spikerush": "Spike'a Hücum",
+  "rpc.mode.deathmatch": "Ölüm Kalım Savaşı",
+  "rpc.mode.ggteam": "Tırmanış",
+  "rpc.mode.onefa": "Kopya",
+  "rpc.mode.custom": "Özel Oyun",
+  "rpc.mode.snowball": "Kartopu Çatışması",
+  "rpc.mode.swiftplay": "Tam Gaz",
+  "rpc.mode.hurm": "Takımlı Ölüm Kalım Savaşı",
+  "rpc.mode.retake": "Retake",
+  "rpc.mode.skirmish": "Çatışma",
+  "rpc.mode.newmap": "Yeni Harita",
+  "rpc.mode.aros": "Rastgele Bölge"
+}

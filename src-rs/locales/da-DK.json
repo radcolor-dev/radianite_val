@@ -1,0 +1,23 @@
+{
+  "_version": 1,
+  "rpc.phase.menu": "%{mode} / Menu",
+  "rpc.phase.queue": "%{mode} / Kø",
+  "rpc.phase.pregame": "%{mode} / Vælger",
+  "rpc.party.solo": "Solo %{size}/%{max}",
+  "rpc.party.group": "I et hold %{size}/%{max}",
+  "rpc.state.rank": "%{rank} (%{rr}rr)",
+  "rpc.mode.competitive": "Rangeret",
+  "rpc.mode.unrated": "Urangeret",
+  "rpc.mode.spikerush": "Spike Rush",
+  "rpc.mode.deathmatch": "Deathmatch",
+  "rpc.mode.ggteam": "Eskalation",
+  "rpc.mode.onefa": "Replikation",
+  "rpc.mode.custom": "Brugerdefineret",
+  "rpc.mode.snowball": "Sneboldskamp",
+  "rpc.mode.swiftplay": "Swiftplay",
+  "rpc.mode.hurm": "Hold Deathmatch",
+  "rpc.mode.retake": "Generobre",
+  "rpc.mode.skirmish": "Skærmydsling",
+  "rpc.mode.newmap": "Nyt kort",
+  "rpc.mode.aros": "Tilfældig plads"
+}

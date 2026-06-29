@@ -1,1 +1,23 @@
-{}
+{
+  "_version": 1,
+  "rpc.phase.menu": "%{mode} / Меню",
+  "rpc.phase.queue": "%{mode} / Очередь",
+  "rpc.phase.pregame": "%{mode} / Выбор...",
+  "rpc.party.solo": "Соло %{size}/%{max}",
+  "rpc.party.group": "В группе %{size}/%{max}",
+  "rpc.state.rank": "%{rank} (%{rr}rr)",
+  "rpc.mode.competitive": "Соревновательный",
+  "rpc.mode.unrated": "Без ранга",
+  "rpc.mode.spikerush": "Быстр. установка Spike",
+  "rpc.mode.deathmatch": "Бой насмерть",
+  "rpc.mode.ggteam": "Эскалация",
+  "rpc.mode.onefa": "Репликация",
+  "rpc.mode.custom": "Своя игра",
+  "rpc.mode.snowball": "Игра в снежки",
+  "rpc.mode.swiftplay": "Быстрая игра",
+  "rpc.mode.hurm": "Командный бой насмерть",
+  "rpc.mode.retake": "Ретейк",
+  "rpc.mode.skirmish": "Стычка",
+  "rpc.mode.newmap": "Новая карта",
+  "rpc.mode.aros": "Случайный сайт"
+}

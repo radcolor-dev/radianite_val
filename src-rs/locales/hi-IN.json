@@ -1,1 +1,23 @@
-{}
+{
+  "_version": 1,
+  "rpc.phase.menu": "%{mode} / Menu",
+  "rpc.phase.queue": "%{mode} / Queue",
+  "rpc.phase.pregame": "%{mode} / चुन रहे हैं",
+  "rpc.party.solo": "Solo %{size}/%{max}",
+  "rpc.party.group": "Party में %{size}/%{max}",
+  "rpc.state.rank": "%{rank} (%{rr}rr)",
+  "rpc.mode.competitive": "Competitive",
+  "rpc.mode.unrated": "Unrated",
+  "rpc.mode.spikerush": "Spike Rush",
+  "rpc.mode.deathmatch": "Deathmatch",
+  "rpc.mode.ggteam": "Escalation",
+  "rpc.mode.onefa": "Replication",
+  "rpc.mode.custom": "Custom",
+  "rpc.mode.snowball": "Snowball Fight",
+  "rpc.mode.swiftplay": "Swiftplay",
+  "rpc.mode.hurm": "Team Deathmatch",
+  "rpc.mode.retake": "Retake",
+  "rpc.mode.skirmish": "Skirmish",
+  "rpc.mode.newmap": "नया Map",
+  "rpc.mode.aros": "All Random One Site"
+}

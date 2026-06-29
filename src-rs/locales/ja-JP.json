@@ -1,1 +1,23 @@
-{}
+{
+  "_version": 1,
+  "rpc.phase.menu": "%{mode} / メニュー",
+  "rpc.phase.queue": "%{mode} / マッチを検索中",
+  "rpc.phase.pregame": "%{mode} / 選択中",
+  "rpc.party.solo": "ソロ %{size}/%{max}",
+  "rpc.party.group": "パーティーに参加中 %{size}/%{max}",
+  "rpc.state.rank": "%{rank} (%{rr}rr)",
+  "rpc.mode.competitive": "コンペティティブ",
+  "rpc.mode.unrated": "アンレート",
+  "rpc.mode.spikerush": "スパイクラッシュ",
+  "rpc.mode.deathmatch": "デスマッチ",
+  "rpc.mode.ggteam": "エスカレーション",
+  "rpc.mode.onefa": "レプリケーション",
+  "rpc.mode.custom": "カスタムゲーム",
+  "rpc.mode.snowball": "スノーボールファイト",
+  "rpc.mode.swiftplay": "スイフトプレイ",
+  "rpc.mode.hurm": "チームデスマッチ",
+  "rpc.mode.retake": "リテイク",
+  "rpc.mode.skirmish": "スカーミッシュ",
+  "rpc.mode.newmap": "新マップ",
+  "rpc.mode.aros": "ランダムサイト"
+}

@@ -1,1 +1,23 @@
-{}
+{
+  "_version": 1,
+  "rpc.phase.menu": "%{mode} / 菜单",
+  "rpc.phase.queue": "%{mode} / 排队中",
+  "rpc.phase.pregame": "%{mode} / 选择中",
+  "rpc.party.solo": "单人 %{size}/%{max}",
+  "rpc.party.group": "在队伍中 %{size}/%{max}",
+  "rpc.state.rank": "%{rank} (%{rr}rr)",
+  "rpc.mode.competitive": "竞技模式",
+  "rpc.mode.unrated": "非排位模式",
+  "rpc.mode.spikerush": "爆能快攻",
+  "rpc.mode.deathmatch": "死斗模式",
+  "rpc.mode.ggteam": "武装升级",
+  "rpc.mode.onefa": "复制模式",
+  "rpc.mode.custom": "自定义",
+  "rpc.mode.snowball": "雪球大战",
+  "rpc.mode.swiftplay": "极速模式",
+  "rpc.mode.hurm": "团队死斗",
+  "rpc.mode.retake": "重夺模式",
+  "rpc.mode.skirmish": "冲突",
+  "rpc.mode.newmap": "新地图",
+  "rpc.mode.aros": "随机据点"
+}

@@ -1,1 +1,23 @@
-{}
+{
+  "_version": 1,
+  "rpc.phase.menu": "%{mode} / Menu",
+  "rpc.phase.queue": "%{mode} / Wachtrij",
+  "rpc.phase.pregame": "%{mode} / Selecteren",
+  "rpc.party.solo": "Solo %{size}/%{max}",
+  "rpc.party.group": "In een groep %{size}/%{max}",
+  "rpc.state.rank": "%{rank} (%{rr}rr)",
+  "rpc.mode.competitive": "Gerangschikt",
+  "rpc.mode.unrated": "Ongerangschikt",
+  "rpc.mode.spikerush": "Spike Rush",
+  "rpc.mode.deathmatch": "Deathmatch",
+  "rpc.mode.ggteam": "Escalatie",
+  "rpc.mode.onefa": "Replicatie",
+  "rpc.mode.custom": "Aangepast",
+  "rpc.mode.snowball": "Sneeuwballengevecht",
+  "rpc.mode.swiftplay": "Swiftplay",
+  "rpc.mode.hurm": "Team Deathmatch",
+  "rpc.mode.retake": "Herovering",
+  "rpc.mode.skirmish": "Schermutseling",
+  "rpc.mode.newmap": "Nieuwe kaart",
+  "rpc.mode.aros": "Willekeurige locatie"
+}

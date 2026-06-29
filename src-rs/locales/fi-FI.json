@@ -1,0 +1,23 @@
+{
+  "_version": 1,
+  "rpc.phase.menu": "%{mode} / Valikko",
+  "rpc.phase.queue": "%{mode} / Jono",
+  "rpc.phase.pregame": "%{mode} / Valitaan",
+  "rpc.party.solo": "Solo %{size}/%{max}",
+  "rpc.party.group": "Ryhmässä %{size}/%{max}",
+  "rpc.state.rank": "%{rank} (%{rr}rr)",
+  "rpc.mode.competitive": "Kilpailullinen",
+  "rpc.mode.unrated": "Ei-kilpailullinen",
+  "rpc.mode.spikerush": "Spike Rush",
+  "rpc.mode.deathmatch": "Deathmatch",
+  "rpc.mode.ggteam": "Eskalaatio",
+  "rpc.mode.onefa": "Replikaatio",
+  "rpc.mode.custom": "Mukautettu",
+  "rpc.mode.snowball": "Lumitaistelu",
+  "rpc.mode.swiftplay": "Swiftplay",
+  "rpc.mode.hurm": "Joukkue-deathmatch",
+  "rpc.mode.retake": "Takaisinvaltaus",
+  "rpc.mode.skirmish": "Kahakka",
+  "rpc.mode.newmap": "Uusi kartta",
+  "rpc.mode.aros": "Satunnainen kohde"
+}

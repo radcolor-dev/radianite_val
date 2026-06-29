@@ -1,1 +1,23 @@
-{}
+{
+  "_version": 1,
+  "rpc.phase.menu": "%{mode} / 主選單",
+  "rpc.phase.queue": "%{mode} / 列隊等待中",
+  "rpc.phase.pregame": "%{mode} / 選擇中",
+  "rpc.party.solo": "單人 %{size}/%{max}",
+  "rpc.party.group": "在房間中 %{size}/%{max}",
+  "rpc.state.rank": "%{rank} (%{rr}競技評分)",
+  "rpc.mode.competitive": "競技模式",
+  "rpc.mode.unrated": "一般模式",
+  "rpc.mode.spikerush": "輻能搶攻戰",
+  "rpc.mode.deathmatch": "死鬥模式",
+  "rpc.mode.ggteam": "超激進戰",
+  "rpc.mode.onefa": "複製亂戰",
+  "rpc.mode.custom": "自定對戰",
+  "rpc.mode.snowball": "打雪仗",
+  "rpc.mode.swiftplay": "超速衝點",
+  "rpc.mode.hurm": "團隊死鬥",
+  "rpc.mode.retake": "重奪",
+  "rpc.mode.skirmish": "小規模衝突",
+  "rpc.mode.newmap": "新地圖",
+  "rpc.mode.aros": "隨機據點"
+}

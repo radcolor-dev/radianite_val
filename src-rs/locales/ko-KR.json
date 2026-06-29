@@ -1,1 +1,23 @@
-{}
+{
+  "_version": 1,
+  "rpc.phase.menu": "%{mode} / 메뉴",
+  "rpc.phase.queue": "%{mode} / 매칭중",
+  "rpc.phase.pregame": "%{mode} / 선택중",
+  "rpc.party.solo": "솔로 %{size}/%{max}",
+  "rpc.party.group": "파티 참가중 %{size}/%{max}",
+  "rpc.state.rank": "%{rank} (%{rr}rr)",
+  "rpc.mode.competitive": "경쟁전",
+  "rpc.mode.unrated": "일반전",
+  "rpc.mode.spikerush": "스파이크 돌격",
+  "rpc.mode.deathmatch": "데스매치",
+  "rpc.mode.ggteam": "에스컬레이션",
+  "rpc.mode.onefa": "복제",
+  "rpc.mode.custom": "사용자 설정 게임",
+  "rpc.mode.snowball": "눈싸움",
+  "rpc.mode.swiftplay": "스위프트플레이",
+  "rpc.mode.hurm": "팀 데스매치",
+  "rpc.mode.retake": "리테이크",
+  "rpc.mode.skirmish": "스커미시",
+  "rpc.mode.newmap": "신규맵",
+  "rpc.mode.aros": "랜덤 사이트"
+}

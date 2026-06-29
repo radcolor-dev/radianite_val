@@ -1,0 +1,23 @@
+{
+  "_version": 1,
+  "rpc.phase.menu": "%{mode} / Menu",
+  "rpc.phase.queue": "%{mode} / Fronta",
+  "rpc.phase.pregame": "%{mode} / Vybírá",
+  "rpc.party.solo": "Solo %{size}/%{max}",
+  "rpc.party.group": "Ve skupině %{size}/%{max}",
+  "rpc.state.rank": "%{rank} (%{rr}rr)",
+  "rpc.mode.competitive": "Hodnocené",
+  "rpc.mode.unrated": "Nehodnocené",
+  "rpc.mode.spikerush": "Spike Rush",
+  "rpc.mode.deathmatch": "Deathmatch",
+  "rpc.mode.ggteam": "Eskalace",
+  "rpc.mode.onefa": "Replikace",
+  "rpc.mode.custom": "Vlastní",
+  "rpc.mode.snowball": "Sněhová bitva",
+  "rpc.mode.swiftplay": "Swiftplay",
+  "rpc.mode.hurm": "Týmový Deathmatch",
+  "rpc.mode.retake": "Znovudobytí",
+  "rpc.mode.skirmish": "Šarvátka",
+  "rpc.mode.newmap": "Nová mapa",
+  "rpc.mode.aros": "Náhodné místo"
+}

@@ -1,1 +1,23 @@
-{}
+{
+  "_version": 1,
+  "rpc.phase.menu": "%{mode} / Menu",
+  "rpc.phase.queue": "%{mode} / Kolejka",
+  "rpc.phase.pregame": "%{mode} / Wybieranie",
+  "rpc.party.solo": "Solo %{size}/%{max}",
+  "rpc.party.group": "W Grupie %{size}/%{max}",
+  "rpc.state.rank": "%{rank} (%{rr}or)",
+  "rpc.mode.competitive": "Rankingowy",
+  "rpc.mode.unrated": "Nierankingowy",
+  "rpc.mode.spikerush": "Gorączka Spike",
+  "rpc.mode.deathmatch": "Deathmatch",
+  "rpc.mode.ggteam": "Eskalacja",
+  "rpc.mode.onefa": "Replikacja",
+  "rpc.mode.custom": "Niestandardowy",
+  "rpc.mode.snowball": "Bitwa Na Śnieżki",
+  "rpc.mode.swiftplay": "Szybka Gra",
+  "rpc.mode.hurm": "Team Deathmatch",
+  "rpc.mode.retake": "Retake",
+  "rpc.mode.skirmish": "Potyczka",
+  "rpc.mode.newmap": "Nowa Mapa",
+  "rpc.mode.aros": "Losowy Punkt"
+}

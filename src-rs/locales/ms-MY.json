@@ -1,0 +1,23 @@
+{
+  "_version": 1,
+  "rpc.phase.menu": "%{mode} / Menu",
+  "rpc.phase.queue": "%{mode} / Giliran",
+  "rpc.phase.pregame": "%{mode} / Memilih",
+  "rpc.party.solo": "Solo %{size}/%{max}",
+  "rpc.party.group": "Dalam Party %{size}/%{max}",
+  "rpc.state.rank": "%{rank} (%{rr}rr)",
+  "rpc.mode.competitive": "Kompetitif",
+  "rpc.mode.unrated": "Tidak Berperingkat",
+  "rpc.mode.spikerush": "Spike Rush",
+  "rpc.mode.deathmatch": "Deathmatch",
+  "rpc.mode.ggteam": "Escalation",
+  "rpc.mode.onefa": "Replikasi",
+  "rpc.mode.custom": "Tersuai",
+  "rpc.mode.snowball": "Pertarungan Bola Salji",
+  "rpc.mode.swiftplay": "Swiftplay",
+  "rpc.mode.hurm": "Team Deathmatch",
+  "rpc.mode.retake": "Ambil Semula",
+  "rpc.mode.skirmish": "Skirmish",
+  "rpc.mode.newmap": "Peta Baharu",
+  "rpc.mode.aros": "Tapak Rawak"
+}

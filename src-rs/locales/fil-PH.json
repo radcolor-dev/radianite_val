@@ -1,10 +1,10 @@
 {
   "_version": 1,
   "rpc.phase.menu": "%{mode} / Menu",
-  "rpc.phase.queue": "%{mode} / Coda",
-  "rpc.phase.pregame": "%{mode} / Selezionando",
-  "rpc.party.solo": "Singolo %{size}/%{max}",
-  "rpc.party.group": "In un party %{size}/%{max}",
+  "rpc.phase.queue": "%{mode} / Queue",
+  "rpc.phase.pregame": "%{mode} / Pumipili",
+  "rpc.party.solo": "Solo %{size}/%{max}",
+  "rpc.party.group": "Nasa Party %{size}/%{max}",
   "rpc.state.rank": "%{rank} (%{rr}rr)",
   "rpc.mode.competitive": "Competitive",
   "rpc.mode.unrated": "Unrated",
@@ -14,10 +14,10 @@
   "rpc.mode.onefa": "Replication",
   "rpc.mode.custom": "Custom",
   "rpc.mode.snowball": "Snowball Fight",
-  "rpc.mode.swiftplay": "Gioco Rapido",
-  "rpc.mode.hurm": "Deathmatch a Squadre",
+  "rpc.mode.swiftplay": "Swiftplay",
+  "rpc.mode.hurm": "Team Deathmatch",
   "rpc.mode.retake": "Retake",
-  "rpc.mode.skirmish": "Scaramuccia",
-  "rpc.mode.newmap": "Nuova Mappa",
-  "rpc.mode.aros": "Sito Casuale"
+  "rpc.mode.skirmish": "Skirmish",
+  "rpc.mode.newmap": "Bagong Mapa",
+  "rpc.mode.aros": "All Random One Site"
 }

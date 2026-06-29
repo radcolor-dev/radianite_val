@@ -1,0 +1,23 @@
+{
+  "_version": 1,
+  "rpc.phase.menu": "%{mode} / เมนู",
+  "rpc.phase.queue": "%{mode} / อยู่ในคิว",
+  "rpc.phase.pregame": "%{mode} / กำลังเลือกเอเจนท์",
+  "rpc.party.solo": "เดี่ยว %{size}/%{max}",
+  "rpc.party.group": "อยู่ในปาร์ตี้ %{size}/%{max}",
+  "rpc.state.rank": "%{rank} (%{rr}rr)",
+  "rpc.mode.competitive": "แรงก์",
+  "rpc.mode.unrated": "ธรรมดา",
+  "rpc.mode.spikerush": "Spike Rush",
+  "rpc.mode.deathmatch": "เดธแมตช์",
+  "rpc.mode.ggteam": "Escalation",
+  "rpc.mode.onefa": "โหมดตัวซ้ำ",
+  "rpc.mode.custom": "สร้างห้อง",
+  "rpc.mode.snowball": "สงครามหิมะ",
+  "rpc.mode.swiftplay": "เล่นเร็ว",
+  "rpc.mode.hurm": "เดธแมตช์ทีม",
+  "rpc.mode.retake": "รีเทค",
+  "rpc.mode.skirmish": "สกีร์มิช",
+  "rpc.mode.newmap": "แมพใหม่",
+  "rpc.mode.aros": "ไซต์สุ่ม"
+}

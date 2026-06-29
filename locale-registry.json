@@ -17,8 +17,10 @@
       "nativeName": "العربية",
       "englishName": "Arabic",
       "direction": "rtl",
-      "contributors": [],
-      "ui": true,
+      "contributors": [
+        "@Ozama#8188 (valorant-rpc)"
+      ],
+      "ui": false,
       "rpc": true
     },
     {
@@ -26,8 +28,12 @@
       "nativeName": "Deutsch",
       "englishName": "German",
       "direction": "ltr",
-      "contributors": [],
-      "ui": true,
+      "contributors": [
+        "@zaykenyon (valorant-rpc)",
+        "@craftpiwurzel#8368 (valorant-rpc)",
+        "@Aethese#1337 (valorant-rpc)"
+      ],
+      "ui": false,
       "rpc": true
     },
     {
@@ -35,8 +41,10 @@
       "nativeName": "Español (España)",
       "englishName": "Spanish (Spain)",
       "direction": "ltr",
-      "contributors": [],
-      "ui": true,
+      "contributors": [
+        "@Rubiz#0822 (valorant-rpc)"
+      ],
+      "ui": false,
       "rpc": true
     },
     {
@@ -44,8 +52,10 @@
       "nativeName": "Français",
       "englishName": "French",
       "direction": "ltr",
-      "contributors": [],
-      "ui": true,
+      "contributors": [
+        "@Hurdenn#2777 (valorant-rpc)"
+      ],
+      "ui": false,
       "rpc": true
     },
     {
@@ -53,8 +63,10 @@
       "nativeName": "हिन्दी",
       "englishName": "Hindi",
       "direction": "ltr",
-      "contributors": [],
-      "ui": true,
+      "contributors": [
+        "community (valorant-rpc)"
+      ],
+      "ui": false,
       "rpc": true
     },
     {
@@ -62,8 +74,10 @@
       "nativeName": "Italiano",
       "englishName": "Italian",
       "direction": "ltr",
-      "contributors": [],
-      "ui": true,
+      "contributors": [
+        "@zaykenyon (valorant-rpc)"
+      ],
+      "ui": false,
       "rpc": true
     },
     {
@@ -71,8 +85,10 @@
       "nativeName": "日本語",
       "englishName": "Japanese",
       "direction": "ltr",
-      "contributors": [],
-      "ui": true,
+      "contributors": [
+        "@Yossi#1114 (valorant-rpc)"
+      ],
+      "ui": false,
       "rpc": true
     },
     {
@@ -80,8 +96,11 @@
       "nativeName": "한국어",
       "englishName": "Korean",
       "direction": "ltr",
-      "contributors": [],
-      "ui": true,
+      "contributors": [
+        "@페이즈#5384 (valorant-rpc)",
+        "@인간#6609 (valorant-rpc)"
+      ],
+      "ui": false,
       "rpc": true
     },
     {
@@ -89,8 +108,10 @@
       "nativeName": "Nederlands",
       "englishName": "Dutch",
       "direction": "ltr",
-      "contributors": [],
-      "ui": true,
+      "contributors": [
+        "community (valorant-rpc)"
+      ],
+      "ui": false,
       "rpc": true
     },
     {
@@ -98,8 +119,10 @@
       "nativeName": "Polski",
       "englishName": "Polish",
       "direction": "ltr",
-      "contributors": [],
-      "ui": true,
+      "contributors": [
+        "@kyanbasu (valorant-rpc)"
+      ],
+      "ui": false,
       "rpc": true
     },
     {
@@ -107,8 +130,10 @@
       "nativeName": "Português (Brasil)",
       "englishName": "Portuguese (Brazil)",
       "direction": "ltr",
-      "contributors": [],
-      "ui": true,
+      "contributors": [
+        "@pessimismo (valorant-rpc)"
+      ],
+      "ui": false,
       "rpc": true
     },
     {
@@ -116,8 +141,11 @@
       "nativeName": "Русский",
       "englishName": "Russian",
       "direction": "ltr",
-      "contributors": [],
-      "ui": true,
+      "contributors": [
+        "@teddn#6036 (valorant-rpc)",
+        "@kizn#6995 (valorant-rpc)"
+      ],
+      "ui": false,
       "rpc": true
     },
     {
@@ -125,8 +153,11 @@
       "nativeName": "Türkçe",
       "englishName": "Turkish",
       "direction": "ltr",
-      "contributors": [],
-      "ui": true,
+      "contributors": [
+        "@MKerem#2078 (valorant-rpc)",
+        "@Ozefear#3083 (valorant-rpc)"
+      ],
+      "ui": false,
       "rpc": true
     },
     {
@@ -134,8 +165,10 @@
       "nativeName": "简体中文",
       "englishName": "Chinese (Simplified)",
       "direction": "ltr",
-      "contributors": [],
-      "ui": true,
+      "contributors": [
+        "deepseek (valorant-rpc)"
+      ],
+      "ui": false,
       "rpc": true
     },
     {
@@ -143,8 +176,121 @@
       "nativeName": "繁體中文",
       "englishName": "Chinese (Traditional)",
       "direction": "ltr",
-      "contributors": [],
-      "ui": true,
+      "contributors": [
+        "@ScarZ (valorant-rpc)"
+      ],
+      "ui": false,
+      "rpc": true
+    },
+    {
+      "tag": "ms-MY",
+      "nativeName": "Bahasa Melayu",
+      "englishName": "Malay",
+      "direction": "ltr",
+      "contributors": [
+        "community (valorant-rpc)"
+      ],
+      "ui": false,
+      "rpc": true
+    },
+    {
+      "tag": "da-DK",
+      "nativeName": "Dansk",
+      "englishName": "Danish",
+      "direction": "ltr",
+      "contributors": [
+        "community (valorant-rpc)"
+      ],
+      "ui": false,
+      "rpc": true
+    },
+    {
+      "tag": "es-MX",
+      "nativeName": "Español (México)",
+      "englishName": "Spanish (Mexico)",
+      "direction": "ltr",
+      "contributors": [
+        "@pessimismo (valorant-rpc)"
+      ],
+      "ui": false,
+      "rpc": true
+    },
+    {
+      "tag": "cs-CZ",
+      "nativeName": "Čeština",
+      "englishName": "Czech",
+      "direction": "ltr",
+      "contributors": [
+        "community (valorant-rpc)"
+      ],
+      "ui": false,
+      "rpc": true
+    },
+    {
+      "tag": "id-ID",
+      "nativeName": "Bahasa Indonesia",
+      "englishName": "Indonesian",
+      "direction": "ltr",
+      "contributors": [
+        "@sryo#9955 (valorant-rpc)"
+      ],
+      "ui": false,
+      "rpc": true
+    },
+    {
+      "tag": "vi-VN",
+      "nativeName": "Tiếng Việt",
+      "englishName": "Vietnamese",
+      "direction": "ltr",
+      "contributors": [
+        "@Mistral#9699 (valorant-rpc)"
+      ],
+      "ui": false,
+      "rpc": true
+    },
+    {
+      "tag": "fi-FI",
+      "nativeName": "Suomi",
+      "englishName": "Finnish",
+      "direction": "ltr",
+      "contributors": [
+        "community (valorant-rpc)"
+      ],
+      "ui": false,
+      "rpc": true
+    },
+    {
+      "tag": "fil-PH",
+      "nativeName": "Filipino",
+      "englishName": "Filipino",
+      "direction": "ltr",
+      "contributors": [
+        "community (valorant-rpc)"
+      ],
+      "ui": false,
+      "rpc": true
+    },
+    {
+      "tag": "th-TH",
+      "nativeName": "ไทย",
+      "englishName": "Thai",
+      "direction": "ltr",
+      "contributors": [
+        "@Nack#2336 (valorant-rpc)",
+        "@TheMickeyz#3078 (valorant-rpc)"
+      ],
+      "ui": false,
+      "rpc": true
+    },
+    {
+      "tag": "sv-SE",
+      "nativeName": "Svenska",
+      "englishName": "Swedish",
+      "direction": "ltr",
+      "contributors": [
+        "community (valorant-rpc)"
+      ],
+      "ui": false,
       "rpc": true
     }
   ]

@@ -1,1 +1,23 @@
-{}
+{
+  "_version": 1,
+  "rpc.phase.menu": "%{mode} / Nos Menus",
+  "rpc.phase.queue": "%{mode} / Na Fila",
+  "rpc.phase.pregame": "%{mode} / Selecionando",
+  "rpc.party.solo": "Grupo Fechado (Solo) %{size}/%{max}",
+  "rpc.party.group": "Em um Grupo %{size}/%{max}",
+  "rpc.state.rank": "%{rank} (%{rr}cr)",
+  "rpc.mode.competitive": "Competitivo",
+  "rpc.mode.unrated": "Sem Classificação",
+  "rpc.mode.spikerush": "Disputa da Spike",
+  "rpc.mode.deathmatch": "Mata-Mata",
+  "rpc.mode.ggteam": "Disparada",
+  "rpc.mode.onefa": "Replicação",
+  "rpc.mode.custom": "Jogo Personalizado",
+  "rpc.mode.snowball": "Batalha Nevada",
+  "rpc.mode.swiftplay": "Frenético",
+  "rpc.mode.hurm": "Mata-Mata em Equipe",
+  "rpc.mode.retake": "Retake",
+  "rpc.mode.skirmish": "Escaramuça",
+  "rpc.mode.newmap": "Mapa Novo",
+  "rpc.mode.aros": "Ponto Aleatório"
+}

@@ -1,0 +1,23 @@
+{
+  "_version": 1,
+  "rpc.phase.menu": "%{mode} / Menu",
+  "rpc.phase.queue": "%{mode} / Trong hàng chờ",
+  "rpc.phase.pregame": "%{mode} / Đang chọn",
+  "rpc.party.solo": "Solo %{size}/%{max}",
+  "rpc.party.group": "Trong một tổ đội %{size}/%{max}",
+  "rpc.state.rank": "%{rank} (%{rr}rr)",
+  "rpc.mode.competitive": "Đấu hạng",
+  "rpc.mode.unrated": "Đấu thường",
+  "rpc.mode.spikerush": "Đặt spike nhanh",
+  "rpc.mode.deathmatch": "Tử chiến",
+  "rpc.mode.ggteam": "Leo thang",
+  "rpc.mode.onefa": "Nhân bản",
+  "rpc.mode.custom": "Custom",
+  "rpc.mode.snowball": "Snowball Fight",
+  "rpc.mode.swiftplay": "Chơi Nhanh",
+  "rpc.mode.hurm": "Tử chiến đồng đội",
+  "rpc.mode.retake": "Retake",
+  "rpc.mode.skirmish": "Đụng độ",
+  "rpc.mode.newmap": "Map mới",
+  "rpc.mode.aros": "Điểm ngẫu nhiên"
+}

@@ -1,1 +1,23 @@
-{}
+{
+  "_version": 1,
+  "rpc.phase.menu": "%{mode} / Menü",
+  "rpc.phase.queue": "%{mode} / Warteschlange",
+  "rpc.phase.pregame": "%{mode} / Wählt",
+  "rpc.party.solo": "Solo %{size}/%{max}",
+  "rpc.party.group": "In einer Gruppe %{size}/%{max}",
+  "rpc.state.rank": "%{rank} (%{rr}rw)",
+  "rpc.mode.competitive": "Gewertet",
+  "rpc.mode.unrated": "Ungewertet",
+  "rpc.mode.spikerush": "Spike-Ansturm",
+  "rpc.mode.deathmatch": "Deathmatch",
+  "rpc.mode.ggteam": "Eskalation",
+  "rpc.mode.onefa": "Klonprogramm",
+  "rpc.mode.custom": "Eigenes Spiel",
+  "rpc.mode.snowball": "Schneeballschlacht",
+  "rpc.mode.swiftplay": "Schnelles Spiel",
+  "rpc.mode.hurm": "Team-Deathmatch",
+  "rpc.mode.retake": "Retake",
+  "rpc.mode.skirmish": "Scharmützel",
+  "rpc.mode.newmap": "Neue Karte",
+  "rpc.mode.aros": "Zufälliger Site"
+}
