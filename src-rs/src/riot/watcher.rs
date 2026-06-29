@@ -13,7 +13,7 @@ use tokio::{sync::oneshot, time::sleep};
 use crate::app_state::AppState;
 
 use super::{
-    local_client::LocalClient,
+    local_client::{ExternalSessions, LocalClient, SessionFetch},
     lockfile::{default_paths, LockfilePaths, RiotLockfile},
     state::{
         now_timestamp, CoreStatus, CoreStatusKind, DiagnosticSnapshot, LiveSnapshot,
@@ -54,6 +54,7 @@ pub struct PollingEventSource {
     last_install_check: Instant,
     cached_lockfile: Option<CachedLockfile>,
     local_client: Option<LocalClient>,
+    cached_sessions: Option<CachedSessions>,
     cached_rank: Option<RankSnapshot>,
     active_season_id: Option<String>,
     last_rank_fetch: Option<Instant>,
@@ -67,6 +68,11 @@ pub struct PollingEventSource {
 struct CachedLockfile {
     signature: FileSignature,
     value: RiotLockfile,
+}
+
+struct CachedSessions {
+    fetched_at: Instant,
+    value: SessionFetch,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -87,6 +93,7 @@ impl PollingEventSource {
             last_install_check: Instant::now(),
             cached_lockfile: None,
             local_client: None,
+            cached_sessions: None,
             cached_rank: None,
             active_season_id: None,
             last_rank_fetch: None,
@@ -173,7 +180,7 @@ impl PollingEventSource {
             }
         };
 
-        let sessions = match local_client.external_sessions().await {
+        let sessions = match self.external_sessions(&local_client).await {
             Ok(fetch) => {
                 diagnostics.local_api_ready = true;
                 diagnostics.riot_client_sessions_status = Some(fetch.status);
@@ -372,11 +379,30 @@ impl PollingEventSource {
         {
             self.local_client =
                 Some(LocalClient::from_lockfile(lockfile).map_err(|err| err.message)?);
+            self.cached_sessions = None;
         }
 
         self.local_client
             .clone()
             .ok_or_else(|| "Riot local HTTP client could not be created".to_string())
+    }
+
+    async fn external_sessions(
+        &mut self,
+        local_client: &LocalClient,
+    ) -> Result<SessionFetch, super::local_client::LocalClientError> {
+        if let Some(cached) = self.cached_sessions.as_ref().filter(|cached| {
+            cached.fetched_at.elapsed() < session_cache_ttl(&cached.value.sessions)
+        }) {
+            return Ok(cached.value.clone());
+        }
+
+        let value = local_client.external_sessions().await?;
+        self.cached_sessions = Some(CachedSessions {
+            fetched_at: Instant::now(),
+            value: value.clone(),
+        });
+        Ok(value)
     }
 
     async fn refresh_client_version(&mut self) {
@@ -451,6 +477,19 @@ impl PollingEventSource {
         if let Some(rank) = next_rank {
             self.cached_rank = Some(rank);
         }
+    }
+}
+
+fn session_cache_ttl(sessions: &ExternalSessions) -> Duration {
+    if sessions.values().any(|session| {
+        session
+            .product_id
+            .as_deref()
+            .is_some_and(|product| product.eq_ignore_ascii_case("valorant"))
+    }) {
+        Duration::from_secs(10)
+    } else {
+        Duration::from_secs(3)
     }
 }
 
@@ -806,7 +845,8 @@ mod tests {
 
     use serde_json::json;
 
-    use super::{file_signature, match_phase, normalize_live_snapshot};
+    use super::{file_signature, match_phase, normalize_live_snapshot, session_cache_ttl};
+    use crate::riot::local_client::{ExternalSession, ExternalSessions};
     use crate::riot::state::{MatchPhase, PlayerIdentity};
 
     #[test]
@@ -870,5 +910,27 @@ mod tests {
         fs::remove_file(path).expect("fixture should be removed");
 
         assert_ne!(before, after);
+    }
+
+    #[test]
+    fn session_cache_is_longer_while_valorant_is_present() {
+        let riot_only = ExternalSessions::new();
+        assert_eq!(
+            session_cache_ttl(&riot_only),
+            std::time::Duration::from_secs(3)
+        );
+
+        let mut valorant = ExternalSessions::new();
+        valorant.insert(
+            "valorant".to_string(),
+            ExternalSession {
+                product_id: Some("VALORANT".to_string()),
+                launch_configuration: None,
+            },
+        );
+        assert_eq!(
+            session_cache_ttl(&valorant),
+            std::time::Duration::from_secs(10)
+        );
     }
 }
