@@ -88,6 +88,7 @@ pub struct PollingEventSource {
     cached_credentials: Option<CachedCredentials>,
     valorant_http_client: Option<reqwest::Client>,
     phase_match_id: Option<PhaseMatchId>,
+    coregame_metadata: Option<CoregameMetadata>,
     cached_rank: Option<RankSnapshot>,
     active_season_id: Option<String>,
     last_rank_fetch: Option<Instant>,
@@ -129,6 +130,41 @@ struct PhaseMatchId {
     match_id: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CoregameMetadata {
+    match_id: String,
+    map_id: Option<String>,
+    agent_id: Option<String>,
+}
+
+impl CoregameMetadata {
+    fn from_response(match_id: &str, puuid: &str, value: &Value) -> Self {
+        let player = value
+            .get("Players")
+            .and_then(Value::as_array)
+            .and_then(|players| {
+                players
+                    .iter()
+                    .find(|player| str_path(player, &["Subject"]).as_deref() == Some(puuid))
+            });
+
+        Self {
+            match_id: match_id.to_string(),
+            map_id: str_path(value, &["MapID"]),
+            agent_id: player.and_then(|player| str_path(player, &["CharacterID"])),
+        }
+    }
+
+    fn apply(&self, snapshot: &mut LiveSnapshot) {
+        if self.map_id.is_some() {
+            snapshot.map_id.clone_from(&self.map_id);
+        }
+        if self.agent_id.is_some() {
+            snapshot.agent_id.clone_from(&self.agent_id);
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct FileSignature {
     len: u64,
@@ -153,6 +189,7 @@ impl PollingEventSource {
             cached_credentials: None,
             valorant_http_client: None,
             phase_match_id: None,
+            coregame_metadata: None,
             cached_rank: None,
             active_season_id: None,
             last_rank_fetch: None,
@@ -441,6 +478,7 @@ impl PollingEventSource {
             self.cached_affinity = None;
             self.cached_identity = None;
             self.cached_credentials = None;
+            self.coregame_metadata = None;
         }
 
         self.local_client
@@ -583,7 +621,8 @@ impl PollingEventSource {
         match snapshot.phase {
             MatchPhase::Pregame => enrich_pregame_match(client, puuid, &match_id, snapshot).await,
             MatchPhase::Ingame | MatchPhase::Range => {
-                enrich_coregame_match(client, puuid, &match_id, snapshot).await
+                self.enrich_coregame_match(client, puuid, &match_id, snapshot)
+                    .await
             }
             _ => {}
         }
@@ -606,6 +645,32 @@ impl PollingEventSource {
             match_id: match_id.clone(),
         });
         Some(match_id)
+    }
+
+    async fn enrich_coregame_match(
+        &mut self,
+        client: &ValorantClient,
+        puuid: &str,
+        match_id: &str,
+        snapshot: &mut LiveSnapshot,
+    ) {
+        if let Some(cached) = self
+            .coregame_metadata
+            .as_ref()
+            .filter(|cached| cached.match_id == match_id)
+        {
+            cached.apply(snapshot);
+            return;
+        }
+
+        let Ok(match_data) = client.coregame_match(match_id).await else {
+            return;
+        };
+        let metadata = CoregameMetadata::from_response(match_id, puuid, &match_data);
+        metadata.apply(snapshot);
+        if metadata.map_id.is_some() || metadata.agent_id.is_some() {
+            self.coregame_metadata = Some(metadata);
+        }
     }
 
     async fn refresh_client_version(&mut self) {
@@ -1012,32 +1077,6 @@ async fn enrich_pregame_match(
     }
 }
 
-async fn enrich_coregame_match(
-    client: &ValorantClient,
-    puuid: &str,
-    match_id: &str,
-    snapshot: &mut LiveSnapshot,
-) {
-    let Ok(match_data) = client.coregame_match(match_id).await else {
-        return;
-    };
-
-    snapshot.map_id = str_path(&match_data, &["MapID"]).or(snapshot.map_id.take());
-
-    let player = match_data
-        .get("Players")
-        .and_then(Value::as_array)
-        .and_then(|players| {
-            players
-                .iter()
-                .find(|player| str_path(player, &["Subject"]).as_deref() == Some(puuid))
-        });
-
-    if let Some(player) = player {
-        snapshot.agent_id = str_path(player, &["CharacterID"]).or(snapshot.agent_id.take());
-    }
-}
-
 fn first_str(value: &Value, paths: &[&[&str]]) -> Option<String> {
     paths.iter().find_map(|path| str_path(value, path))
 }
@@ -1057,8 +1096,8 @@ mod tests {
 
     use super::{
         cache_is_fresh, credential_cache_ttl, file_signature, match_phase, normalize_live_snapshot,
-        poll_delay, session_cache_ttl, CREDENTIAL_CACHE_FALLBACK_TTL, CREDENTIAL_CACHE_MAX_TTL,
-        IDENTITY_CACHE_TTL,
+        poll_delay, session_cache_ttl, CoregameMetadata, CREDENTIAL_CACHE_FALLBACK_TTL,
+        CREDENTIAL_CACHE_MAX_TTL, IDENTITY_CACHE_TTL,
     };
     use crate::riot::state::{MatchPhase, PlayerIdentity};
     use crate::riot::{
@@ -1233,5 +1272,21 @@ mod tests {
             poll_delay(&CoreStatusKind::RiotClientClosed, None),
             std::time::Duration::from_secs(5)
         );
+    }
+
+    #[test]
+    fn extracts_immutable_coregame_metadata_for_the_local_player() {
+        let response = json!({
+            "MapID": "/Game/Maps/Ascent/Ascent",
+            "Players": [
+                { "Subject": "other", "CharacterID": "other-agent" },
+                { "Subject": "self", "CharacterID": "self-agent" }
+            ]
+        });
+
+        let metadata = CoregameMetadata::from_response("match-1", "self", &response);
+        assert_eq!(metadata.match_id, "match-1");
+        assert_eq!(metadata.map_id.as_deref(), Some("/Game/Maps/Ascent/Ascent"));
+        assert_eq!(metadata.agent_id.as_deref(), Some("self-agent"));
     }
 }
