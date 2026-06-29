@@ -21,9 +21,9 @@ use super::{
         LocalizedMessage, MatchPhase, PartySnapshot, PlayerIdentity, RankSnapshot, ScoreSnapshot,
     },
     valorant_client::{
-        active_season_id, extract_region_and_shard, fetch_public_client_version, i32_path,
-        rank_from_competitive_updates, rank_from_mmr, str_path, u32_path, ValorantClient,
-        ValorantContent, ValorantContentCache,
+        active_season_id, build_valorant_http_client, extract_region_and_shard,
+        fetch_public_client_version, i32_path, rank_from_competitive_updates, rank_from_mmr,
+        str_path, u32_path, ValorantClient, ValorantContent, ValorantContentCache,
     },
 };
 
@@ -64,6 +64,7 @@ pub struct PollingEventSource {
     cached_affinity: Option<CachedAffinity>,
     cached_identity: Option<CachedIdentity>,
     cached_credentials: Option<CachedCredentials>,
+    valorant_http_client: Option<reqwest::Client>,
     cached_rank: Option<RankSnapshot>,
     active_season_id: Option<String>,
     last_rank_fetch: Option<Instant>,
@@ -122,6 +123,7 @@ impl PollingEventSource {
             cached_affinity: None,
             cached_identity: None,
             cached_credentials: None,
+            valorant_http_client: None,
             cached_rank: None,
             active_season_id: None,
             last_rank_fetch: None,
@@ -326,9 +328,7 @@ impl PollingEventSource {
         );
 
         let valorant_client = match (region.clone(), shard.clone()) {
-            (Some(region), Some(shard)) => {
-                ValorantClient::new(region, shard, tokens, self.client_version.clone()).ok()
-            }
+            (Some(region), Some(shard)) => self.valorant_client(region, shard, tokens),
             _ => None,
         };
 
@@ -492,6 +492,27 @@ impl PollingEventSource {
             value: value.clone(),
         });
         Ok(value)
+    }
+
+    fn valorant_client(
+        &mut self,
+        region: String,
+        shard: String,
+        tokens: EntitlementsToken,
+    ) -> Option<ValorantClient> {
+        if self.valorant_http_client.is_none() {
+            self.valorant_http_client = build_valorant_http_client().ok();
+        }
+
+        self.valorant_http_client.clone().map(|client| {
+            ValorantClient::from_http_client(
+                client,
+                region,
+                shard,
+                tokens,
+                self.client_version.clone(),
+            )
+        })
     }
 
     async fn refresh_client_version(&mut self) {

@@ -58,27 +58,20 @@ pub struct ValorantClient {
 }
 
 impl ValorantClient {
-    pub fn new(
+    pub(crate) fn from_http_client(
+        client: reqwest::Client,
         region: String,
         shard: String,
         tokens: EntitlementsToken,
         client_version: Option<String>,
-    ) -> Result<Self, ValorantHttpError> {
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(5))
-            .user_agent("Radianite/0.1")
-            .build()
-            .map_err(|err| {
-                ValorantHttpError::transport(format!("HTTP client setup failed: {err}"))
-            })?;
-
-        Ok(Self {
+    ) -> Self {
+        Self {
             client,
             region,
             shard,
             tokens,
             client_version,
-        })
+        }
     }
 
     fn glz_base(&self) -> String {
@@ -180,6 +173,14 @@ impl ValorantClient {
         )
         .await
     }
+}
+
+pub(crate) fn build_valorant_http_client() -> Result<reqwest::Client, ValorantHttpError> {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .user_agent("Radianite/0.1")
+        .build()
+        .map_err(|err| ValorantHttpError::transport(format!("HTTP client setup failed: {err}")))
 }
 
 pub async fn fetch_public_client_version() -> Result<String, ValorantHttpError> {
@@ -647,8 +648,9 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        active_season_id, extract_region_and_shard, rank_from_competitive_updates, rank_from_mmr,
-        ContentAgent, ContentCompetitiveTier, ContentMap, ValorantClient, ValorantContent,
+        active_season_id, build_valorant_http_client, extract_region_and_shard,
+        rank_from_competitive_updates, rank_from_mmr, ContentAgent, ContentCompetitiveTier,
+        ContentMap, ValorantClient, ValorantContent,
     };
     use crate::riot::local_client::EntitlementsToken;
     use crate::riot::local_client::{ExternalSession, LaunchConfiguration};
@@ -788,7 +790,8 @@ mod tests {
 
     #[test]
     fn includes_required_valorant_headers() {
-        let client = ValorantClient::new(
+        let client = ValorantClient::from_http_client(
+            build_valorant_http_client().expect("transport should build"),
             "ap".to_string(),
             "ap".to_string(),
             EntitlementsToken {
@@ -796,8 +799,7 @@ mod tests {
                 entitlements_token: "entitlement.jwt".to_string(),
             },
             Some("release-version".to_string()),
-        )
-        .expect("client should build");
+        );
 
         let headers = client.headers().expect("headers should build");
 
@@ -805,5 +807,25 @@ mod tests {
         assert!(headers.contains_key("X-Riot-Entitlements-JWT"));
         assert!(headers.contains_key("X-Riot-ClientPlatform"));
         assert!(headers.contains_key("X-Riot-ClientVersion"));
+    }
+
+    #[test]
+    fn builds_authenticated_client_from_shared_transport() {
+        let transport = build_valorant_http_client().expect("transport should build");
+        let client = ValorantClient::from_http_client(
+            transport,
+            "ap".to_string(),
+            "ap".to_string(),
+            EntitlementsToken {
+                access_token: "access.jwt".to_string(),
+                entitlements_token: "entitlement.jwt".to_string(),
+            },
+            None,
+        );
+
+        assert!(client
+            .headers()
+            .expect("headers")
+            .contains_key("authorization"));
     }
 }
