@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import {
   IconCalendarEvent,
@@ -12,6 +13,7 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { Panel } from "@/components/panel"
+import { ReleaseNotesDialog } from "@/components/release-notes-dialog"
 import { formatDate, formatTime } from "@/lib/format"
 import { translateMessage } from "@/lib/localized-message"
 import { cn } from "@/lib/utils"
@@ -30,15 +32,16 @@ export function UpdatesCard({ updater, version, canInstall, lastChecked, onCheck
   const current = updater.currentVersion ?? version ?? t("common.notAvailable")
   const hasUpdate = updater.status === "available" && Boolean(updater.version)
   const releaseNotes = hasUpdate ? cleanNotes(updater.body) : null
+  const [selectedRelease, setSelectedRelease] = useState<"current" | "latest" | null>(null)
 
   return (
     <Panel icon={<IconRocket />} title={t("updates.title")}>
       <div className="flex flex-col gap-2.5">
         <div className="flex flex-col">
-          <InfoRow icon={<IconTag />} label={t("updates.currentVersion")} value={`v${current}`} mono />
+          <InfoRow icon={<IconTag />} label={t("updates.currentVersion")} value={`v${current}`} mono onClick={current === t("common.notAvailable") ? undefined : () => setSelectedRelease("current")} />
           <InfoRow icon={<IconRocket />} label={t("updates.status")} value={statusLabel(updater, t)} valueClassName={statusTone(updater.status)} />
           <InfoRow icon={<IconClockCheck />} label={t("updates.lastChecked")} value={lastChecked ? formatTime(lastChecked) : t("updates.never")} mono />
-          {hasUpdate ? <InfoRow icon={<IconSparkles />} label={t("updates.latestVersion")} value={`v${updater.version}`} valueClassName="text-primary" mono /> : null}
+          {hasUpdate ? <InfoRow icon={<IconSparkles />} label={t("updates.latestVersion")} value={`v${updater.version}`} valueClassName="text-primary" mono onClick={() => setSelectedRelease("latest")} /> : null}
           {hasUpdate && updater.date ? <InfoRow icon={<IconCalendarEvent />} label={t("updates.released")} value={formatDate(new Date(updater.date.replace(/ \d{2}:\d{2}:\d{2}.*$/, "")))} mono /> : null}
         </div>
         {updater.status === "installing" ? (
@@ -54,12 +57,20 @@ export function UpdatesCard({ updater, version, canInstall, lastChecked, onCheck
           <Button size="sm" onClick={onInstall} disabled={!canInstall || checking}><IconDownload data-icon="inline-start" />{t("updates.install")}</Button>
         </div>
       </div>
+      <ReleaseNotesDialog
+        open={selectedRelease !== null}
+        onOpenChange={(open) => { if (!open) setSelectedRelease(null) }}
+        fetchFromGitHub={selectedRelease === "current"}
+        release={selectedRelease === "latest" ? { version: updater.version ?? "", body: updater.body, date: updater.date } : selectedRelease === "current" ? { version: current } : null}
+      />
     </Panel>
   )
 }
 
-function InfoRow({ icon, label, value, mono, valueClassName }: { icon: React.ReactNode; label: string; value: string; mono?: boolean; valueClassName?: string }) {
-  return <div className="flex items-center justify-between gap-3 border-t border-border/60 py-1.5 first:border-t-0"><span className="flex items-center gap-2.5 text-sm text-muted-foreground [&_svg]:size-4">{icon}<span className="text-foreground">{label}</span></span><span className={cn("text-sm font-semibold", mono && "font-mono", valueClassName)}>{value}</span></div>
+function InfoRow({ icon, label, value, mono, valueClassName, onClick }: { icon: React.ReactNode; label: string; value: string; mono?: boolean; valueClassName?: string; onClick?: () => void }) {
+  const content = <><span className="flex items-center gap-2.5 text-sm text-muted-foreground [&_svg]:size-4">{icon}<span className="text-foreground">{label}</span></span><span className={cn("text-sm font-semibold", mono && "font-mono", valueClassName)}>{value}</span></>
+  const className = "flex w-full items-center justify-between gap-3 border-t border-border/60 py-1.5 first:border-t-0"
+  return onClick ? <button type="button" className={cn(className, "rounded-sm text-start transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring")} onClick={onClick}>{content}</button> : <div className={className}>{content}</div>
 }
 
 function cleanNotes(body?: string | null) {

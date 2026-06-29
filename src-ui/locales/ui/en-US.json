@@ -157,6 +157,12 @@
     "check": "Check for updates",
     "install": "Install update",
     "whatsNew": "What's new",
+    "releaseNotesTitle": "Radianite v{{version}}",
+    "releaseNotesDescription": "Release notes from GitHub",
+    "loadingReleaseNotes": "Loading release notes…",
+    "releaseNotesError": "Release notes couldn't be loaded from GitHub.",
+    "noReleaseNotes": "No release notes were published for this version.",
+    "viewOnGitHub": "View on GitHub",
     "signed": "Updates are cryptographically signed and verified.",
     "availableShort": "v{{version}} available",
     "state": {
