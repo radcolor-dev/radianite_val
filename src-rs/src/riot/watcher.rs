@@ -60,6 +60,7 @@ fn poll_delay(kind: &CoreStatusKind, phase: Option<&MatchPhase>) -> Duration {
                 MatchPhase::Matchmaking
                 | MatchPhase::Pregame
                 | MatchPhase::Ingame
+                | MatchPhase::Replay
                 | MatchPhase::Range,
             ),
         )
@@ -1197,6 +1198,7 @@ fn match_phase(presence: &Value) -> MatchPhase {
         "MENUS" => MatchPhase::Menus,
         "PREGAME" => MatchPhase::Pregame,
         "INGAME" => MatchPhase::Ingame,
+        "REPLAY" => MatchPhase::Replay,
         _ => MatchPhase::Unknown,
     }
 }
@@ -1299,6 +1301,30 @@ mod tests {
         assert_eq!(snapshot.party.size, Some(2));
         assert_eq!(snapshot.match_id.as_deref(), Some("live-match"));
         assert_eq!(snapshot.score.expect("score").ally, 7);
+    }
+
+    #[test]
+    fn detects_replay_phase() {
+        let presence = json!({
+            "matchPresenceData": {
+                "sessionLoopState": "REPLAY",
+                "queueId": "competitive"
+            },
+            "partyPresenceData": {
+                "partyState": "CUSTOM_GAME_SETUP"
+            }
+        });
+
+        let snapshot = normalize_live_snapshot(
+            Some(&presence),
+            PlayerIdentity::default(),
+            Some("ap".to_string()),
+            Some("ap".to_string()),
+            None,
+        );
+
+        assert_eq!(snapshot.phase, MatchPhase::Replay);
+        assert_eq!(snapshot.map_id, None);
     }
 
     #[test]

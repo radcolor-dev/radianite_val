@@ -46,6 +46,7 @@ export type MatchPhase =
   | "matchmaking"
   | "pregame"
   | "ingame"
+  | "replay"
   | "range"
   | "unknown"
 

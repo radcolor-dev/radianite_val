@@ -319,7 +319,7 @@ fn same_live_session(previous: &LiveSnapshot, current: &LiveSnapshot) -> bool {
     previous.phase == current.phase
         && previous.queue_id == current.queue_id
         && match current.phase {
-            MatchPhase::Ingame | MatchPhase::Range => {
+            MatchPhase::Ingame | MatchPhase::Replay | MatchPhase::Range => {
                 previous.map_id == current.map_id && previous.agent_id == current.agent_id
             }
             MatchPhase::Pregame => previous.agent_id == current.agent_id,

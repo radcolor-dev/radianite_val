@@ -91,6 +91,7 @@ pub enum MatchPhase {
     Matchmaking,
     Pregame,
     Ingame,
+    Replay,
     Range,
     Unknown,
 }

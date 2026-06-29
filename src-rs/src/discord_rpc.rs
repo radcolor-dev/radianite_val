@@ -376,6 +376,7 @@ fn details_text(
                 .to_string()
             }
         }
+        MatchPhase::Replay => t!("rpc.phase.replay", locale = locale).to_string(),
         MatchPhase::Range => t!("rpc.phase.range", locale = locale).to_string(),
         MatchPhase::Unknown => mode,
     }
@@ -500,6 +501,9 @@ fn small_asset(
             })
             .or_else(|| rank_asset(snapshot, assets, locale, content))
             .or_else(|| mode_asset(snapshot, assets, locale))
+            .unwrap_or_else(|| menu_asset(assets, locale)),
+        MatchPhase::Replay => mode_asset(snapshot, assets, locale)
+            .or_else(|| rank_asset(snapshot, assets, locale, content))
             .unwrap_or_else(|| menu_asset(assets, locale)),
         MatchPhase::Menus | MatchPhase::Matchmaking => {
             if snapshot.queue_id.as_deref() == Some("competitive") {
@@ -813,6 +817,15 @@ mod tests {
             details_text(&snapshot, "en-US", None),
             "Ascent / Competitive (7-4)"
         );
+    }
+
+    #[test]
+    fn renders_replay_state_on_second_line() {
+        let mut snapshot = snapshot(MatchPhase::Replay);
+        snapshot.party.size = Some(2);
+
+        assert_eq!(details_text(&snapshot, "en-US", None), "Watching Replay");
+        assert_eq!(state_text(&snapshot, "en-US", None), "Duo 2/5");
     }
 
     #[test]

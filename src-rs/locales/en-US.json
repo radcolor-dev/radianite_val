@@ -11,6 +11,7 @@
   "rpc.phase.pregame": "%{mode} / Agent Select",
   "rpc.phase.ingame": "%{location} / %{mode}",
   "rpc.phase.ingameScore": "%{location} / %{mode} (%{ally}-%{enemy})",
+  "rpc.phase.replay": "Watching Replay",
   "rpc.phase.range": "The Range / Practice",
   "rpc.party.solo": "Solo %{size}/%{max}",
   "rpc.party.duo": "Duo %{size}/%{max}",

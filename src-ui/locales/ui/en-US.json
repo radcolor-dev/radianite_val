@@ -105,6 +105,7 @@
       "matchmaking": "Matchmaking",
       "pregame": "Agent Select",
       "ingame": "In Game",
+      "replay": "Replay",
       "range": "The Range",
       "unknown": "Unknown"
     },
