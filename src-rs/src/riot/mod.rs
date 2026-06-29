@@ -1,3 +1,4 @@
+pub mod cache;
 pub mod local_client;
 pub mod lockfile;
 #[cfg(test)]

@@ -7,6 +7,7 @@ use std::{
 };
 
 use base64::{engine::general_purpose, Engine as _};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::{AppHandle, Emitter};
 use tokio::{sync::oneshot, time::sleep};
@@ -14,6 +15,7 @@ use tokio::{sync::oneshot, time::sleep};
 use crate::app_state::AppState;
 
 use super::{
+    cache::PublicCacheContext,
     local_client::{ChatSession, EntitlementsToken, ExternalSessions, LocalClient, SessionFetch},
     lockfile::{default_paths, LockfilePaths, RiotLockfile},
     state::{
@@ -31,6 +33,8 @@ const IDENTITY_CACHE_TTL: Duration = Duration::from_secs(300);
 const CREDENTIAL_CACHE_FALLBACK_TTL: Duration = Duration::from_secs(300);
 const CREDENTIAL_CACHE_MAX_TTL: Duration = Duration::from_secs(600);
 const CREDENTIAL_EXPIRY_MARGIN: u64 = 60;
+const CLIENT_VERSION_CACHE_SCHEMA: u8 = 1;
+const CLIENT_VERSION_CACHE_TTL_SECONDS: i64 = 12 * 60 * 60;
 
 #[derive(Debug, Clone)]
 pub struct PollResult {
@@ -95,6 +99,8 @@ pub struct PollingEventSource {
     last_phase: Option<MatchPhase>,
     client_version: Option<String>,
     last_version_attempt: Option<Instant>,
+    version_cache_checked: bool,
+    public_cache: Option<PublicCacheContext>,
     content: Option<ValorantContent>,
     content_cache: ValorantContentCache,
     last_content_attempt: Option<Instant>,
@@ -173,7 +179,15 @@ struct FileSignature {
 }
 
 impl PollingEventSource {
+    #[cfg(test)]
     pub fn new(content_cache: ValorantContentCache) -> Self {
+        Self::with_public_cache(content_cache, None)
+    }
+
+    pub fn with_public_cache(
+        content_cache: ValorantContentCache,
+        public_cache: Option<PublicCacheContext>,
+    ) -> Self {
         let paths = default_paths();
         Self {
             riot_installs_exists: paths
@@ -197,6 +211,8 @@ impl PollingEventSource {
             last_phase: None,
             client_version: None,
             last_version_attempt: None,
+            version_cache_checked: false,
+            public_cache,
             content: None,
             content_cache,
             last_content_attempt: None,
@@ -727,6 +743,16 @@ impl PollingEventSource {
     }
 
     async fn refresh_client_version(&mut self) {
+        if !self.version_cache_checked {
+            self.version_cache_checked = true;
+            if let Some(cached) = self.public_cache.as_ref().and_then(|context| {
+                load_cached_client_version(context, chrono::Utc::now().timestamp())
+            }) {
+                self.client_version = Some(cached);
+                return;
+            }
+        }
+
         let should_attempt = self.client_version.is_none()
             && self
                 .last_version_attempt
@@ -738,6 +764,10 @@ impl PollingEventSource {
 
         self.last_version_attempt = Some(Instant::now());
         if let Ok(version) = fetch_public_client_version().await {
+            if let Some(context) = &self.public_cache {
+                let _ =
+                    store_cached_client_version(context, &version, chrono::Utc::now().timestamp());
+            }
             self.client_version = Some(version);
         }
     }
@@ -863,6 +893,44 @@ fn rank_refresh_due(
         })
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CachedClientVersion {
+    schema: u8,
+    app_version: String,
+    fetched_at: i64,
+    value: String,
+}
+
+fn load_cached_client_version(context: &PublicCacheContext, now: i64) -> Option<String> {
+    let raw = fs::read(context.root().join("client-version-v1.json")).ok()?;
+    let cached = serde_json::from_slice::<CachedClientVersion>(&raw).ok()?;
+    let age = now.checked_sub(cached.fetched_at)?;
+    (cached.schema == CLIENT_VERSION_CACHE_SCHEMA
+        && cached.app_version == context.app_version()
+        && (0..CLIENT_VERSION_CACHE_TTL_SECONDS).contains(&age))
+    .then_some(cached.value)
+}
+
+fn store_cached_client_version(
+    context: &PublicCacheContext,
+    value: &str,
+    fetched_at: i64,
+) -> Result<(), String> {
+    fs::create_dir_all(context.root())
+        .map_err(|err| format!("failed to create public cache: {err}"))?;
+    let cached = CachedClientVersion {
+        schema: CLIENT_VERSION_CACHE_SCHEMA,
+        app_version: context.app_version().to_string(),
+        fetched_at,
+        value: value.to_string(),
+    };
+    let raw = serde_json::to_vec(&cached)
+        .map_err(|err| format!("failed to encode client version cache: {err}"))?;
+    fs::write(context.root().join("client-version-v1.json"), raw)
+        .map_err(|err| format!("failed to write client version cache: {err}"))
+}
+
 fn file_signature(path: &Path) -> Result<FileSignature, String> {
     let metadata =
         fs::metadata(path).map_err(|err| format!("failed to stat Riot lockfile: {err}"))?;
@@ -879,7 +947,8 @@ impl EventSource for PollingEventSource {
 }
 
 pub async fn run_monitor_loop(state: AppState, app: AppHandle, mut stop_rx: oneshot::Receiver<()>) {
-    let mut source = PollingEventSource::new(state.content_cache());
+    let mut source =
+        PollingEventSource::with_public_cache(state.content_cache(), state.public_cache_context());
 
     loop {
         let result = source.poll().await;
@@ -1174,12 +1243,14 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        cache_is_fresh, credential_cache_ttl, file_signature, match_phase, normalize_live_snapshot,
-        poll_delay, rank_refresh_due, session_cache_ttl, CoregameMetadata,
-        CREDENTIAL_CACHE_FALLBACK_TTL, CREDENTIAL_CACHE_MAX_TTL, IDENTITY_CACHE_TTL,
+        cache_is_fresh, credential_cache_ttl, file_signature, load_cached_client_version,
+        match_phase, normalize_live_snapshot, poll_delay, rank_refresh_due, session_cache_ttl,
+        store_cached_client_version, CoregameMetadata, CREDENTIAL_CACHE_FALLBACK_TTL,
+        CREDENTIAL_CACHE_MAX_TTL, IDENTITY_CACHE_TTL,
     };
     use crate::riot::state::{MatchPhase, PlayerIdentity};
     use crate::riot::{
+        cache::PublicCacheContext,
         local_client::{ExternalSession, ExternalSessions, LaunchConfiguration},
         valorant_client::ValorantContentCache,
     };
@@ -1441,5 +1512,29 @@ mod tests {
                 .map(|cached| cached.value.entitlements_token.as_str()),
             Some("entitlement")
         );
+    }
+
+    #[test]
+    fn client_version_disk_cache_expires_and_invalidates_on_app_update() {
+        let root = std::env::temp_dir().join(format!(
+            "radianite-version-cache-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .expect("clock should be valid")
+                .as_nanos()
+        ));
+        let context = PublicCacheContext::new(root.clone(), "1.0.0".to_string());
+        store_cached_client_version(&context, "release-1", 1_000).expect("cache should write");
+
+        assert_eq!(
+            load_cached_client_version(&context, 1_001).as_deref(),
+            Some("release-1")
+        );
+        let updated = PublicCacheContext::new(root.clone(), "2.0.0".to_string());
+        assert!(load_cached_client_version(&updated, 1_001).is_none());
+        assert!(load_cached_client_version(&context, 1_000 + 12 * 60 * 60).is_none());
+
+        fs::remove_dir_all(root).expect("cache fixture should be removed");
     }
 }

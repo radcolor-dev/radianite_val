@@ -59,6 +59,12 @@ pub fn run() {
 
     builder
         .setup(move |app| {
+            let app_state = app.state::<AppState>();
+            app_state.configure_public_cache(
+                app.path().app_cache_dir()?,
+                app.package_info().version.to_string(),
+            );
+
             let state = overlay_state.clone();
             tauri::async_runtime::spawn(async move {
                 state.start_overlay_server().await;

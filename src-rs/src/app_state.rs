@@ -1,4 +1,7 @@
-use std::sync::Arc;
+use std::{
+    path::PathBuf,
+    sync::{Arc, OnceLock},
+};
 
 use tauri::AppHandle;
 use tokio::{
@@ -9,6 +12,7 @@ use tokio::{
 use crate::{
     discord_rpc::{DiscordRpcManager, RpcConfig},
     riot::{
+        cache::PublicCacheContext,
         state::{
             now_timestamp, AppSnapshot, CoreStatus, CoreStatusKind, DiagnosticSnapshot,
             LiveSnapshot, LocalizedMessage, MatchPhase, OverlayStatus, RpcStatus,
@@ -26,6 +30,7 @@ pub struct AppState {
     overlay_status: Arc<RwLock<OverlayStatus>>,
     overlay_server: Arc<Mutex<Option<JoinHandle<()>>>>,
     content_cache: ValorantContentCache,
+    public_cache: Arc<OnceLock<PublicCacheContext>>,
 }
 
 struct AppInner {
@@ -70,6 +75,7 @@ impl AppState {
             ))),
             overlay_server: Arc::new(Mutex::new(None)),
             content_cache: ValorantContentCache::default(),
+            public_cache: Arc::new(OnceLock::new()),
         }
     }
 
@@ -207,6 +213,16 @@ impl AppState {
 
     pub fn content_cache(&self) -> ValorantContentCache {
         self.content_cache.clone()
+    }
+
+    pub fn configure_public_cache(&self, root: PathBuf, app_version: String) {
+        let _ = self
+            .public_cache
+            .set(PublicCacheContext::new(root, app_version));
+    }
+
+    pub fn public_cache_context(&self) -> Option<PublicCacheContext> {
+        self.public_cache.get().cloned()
     }
 
     pub async fn apply_poll_result(&self, result: PollResult) -> AppliedChanges {
