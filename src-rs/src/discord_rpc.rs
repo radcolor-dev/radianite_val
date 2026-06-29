@@ -906,11 +906,17 @@ mod tests {
     }
 
     #[test]
-    fn blank_catalogs_fall_back_to_english() {
-        for locale in ["de-DE", "es-ES", "ja-JP"] {
+    fn blank_catalogs_still_use_localized_static_strings() {
+        let cases = [
+            ("de-DE", "Gewertet / Warteschlange"),
+            ("es-ES", "Competitivo / Cola"),
+            ("ja-JP", "コンペティティブ / マッチを検索中"),
+        ];
+
+        for (locale, expected) in cases {
             assert_eq!(
                 details_text(&snapshot(MatchPhase::Matchmaking), locale, None),
-                "Competitive / Queueing"
+                expected
             );
         }
     }
