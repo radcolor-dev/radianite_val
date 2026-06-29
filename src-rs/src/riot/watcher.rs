@@ -619,7 +619,9 @@ impl PollingEventSource {
         snapshot.match_id = Some(match_id.clone());
 
         match snapshot.phase {
-            MatchPhase::Pregame => enrich_pregame_match(client, puuid, &match_id, snapshot).await,
+            MatchPhase::Pregame if snapshot.agent_id.is_none() => {
+                enrich_pregame_match(client, puuid, &match_id, snapshot).await
+            }
             MatchPhase::Ingame | MatchPhase::Range => {
                 self.enrich_coregame_match(client, puuid, &match_id, snapshot)
                     .await
@@ -1149,6 +1151,26 @@ mod tests {
         assert_eq!(snapshot.party.size, Some(2));
         assert_eq!(snapshot.match_id.as_deref(), Some("live-match"));
         assert_eq!(snapshot.score.expect("score").ally, 7);
+    }
+
+    #[test]
+    fn normalizes_selected_agent_from_presence() {
+        let presence = json!({
+            "sessionLoopState": "PREGAME",
+            "playerPresenceData": { "selectedAgent": "agent-from-presence" },
+            "matchPresenceData": { "matchId": "pregame-match" }
+        });
+        let snapshot = normalize_live_snapshot(
+            Some(&presence),
+            PlayerIdentity::default(),
+            Some("ap".to_string()),
+            Some("ap".to_string()),
+            None,
+        );
+
+        assert_eq!(snapshot.phase, MatchPhase::Pregame);
+        assert_eq!(snapshot.agent_id.as_deref(), Some("agent-from-presence"));
+        assert_eq!(snapshot.match_id.as_deref(), Some("pregame-match"));
     }
 
     #[test]
