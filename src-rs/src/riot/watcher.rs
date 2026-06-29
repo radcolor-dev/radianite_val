@@ -1,5 +1,7 @@
 use std::{
+    fs,
     future::Future,
+    path::Path,
     pin::Pin,
     time::{Duration, Instant},
 };
@@ -12,7 +14,7 @@ use crate::app_state::AppState;
 
 use super::{
     local_client::LocalClient,
-    lockfile::{default_paths, RiotLockfile},
+    lockfile::{default_paths, LockfilePaths, RiotLockfile},
     state::{
         now_timestamp, CoreStatus, CoreStatusKind, DiagnosticSnapshot, LiveSnapshot,
         LocalizedMessage, MatchPhase, PartySnapshot, PlayerIdentity, RankSnapshot, ScoreSnapshot,
@@ -47,6 +49,10 @@ pub trait EventSource {
 }
 
 pub struct PollingEventSource {
+    paths: LockfilePaths,
+    riot_installs_exists: bool,
+    last_install_check: Instant,
+    cached_lockfile: Option<CachedLockfile>,
     local_client: Option<LocalClient>,
     cached_rank: Option<RankSnapshot>,
     active_season_id: Option<String>,
@@ -58,9 +64,28 @@ pub struct PollingEventSource {
     last_content_attempt: Option<Instant>,
 }
 
+struct CachedLockfile {
+    signature: FileSignature,
+    value: RiotLockfile,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct FileSignature {
+    len: u64,
+    modified: Option<std::time::SystemTime>,
+}
+
 impl PollingEventSource {
     pub fn new(content_cache: ValorantContentCache) -> Self {
+        let paths = default_paths();
         Self {
+            riot_installs_exists: paths
+                .riot_installs_path
+                .as_ref()
+                .is_some_and(|path| path.is_file()),
+            paths,
+            last_install_check: Instant::now(),
+            cached_lockfile: None,
             local_client: None,
             cached_rank: None,
             active_season_id: None,
@@ -81,21 +106,21 @@ impl PollingEventSource {
         );
         let mut diagnostics = DiagnosticSnapshot::empty(checking);
 
-        let paths = default_paths();
-        diagnostics.riot_installs_path = paths
+        diagnostics.riot_installs_path = self
+            .paths
             .riot_installs_path
             .as_ref()
             .map(|path| path.display().to_string());
-        diagnostics.riot_installs_json_exists = paths
-            .riot_installs_path
-            .as_ref()
-            .is_some_and(|path| path.is_file());
+        self.refresh_install_state();
+        diagnostics.riot_installs_json_exists = self.riot_installs_exists;
 
-        diagnostics.lockfile_path = paths
+        diagnostics.lockfile_path = self
+            .paths
             .lockfile_path
             .as_ref()
             .map(|path| path.display().to_string());
-        diagnostics.lockfile_exists = paths
+        diagnostics.lockfile_exists = self
+            .paths
             .lockfile_path
             .as_ref()
             .is_some_and(|path| path.is_file());
@@ -118,7 +143,7 @@ impl PollingEventSource {
             );
         }
 
-        let lockfile = match RiotLockfile::read_default() {
+        let lockfile = match self.read_lockfile() {
             Ok(lockfile) => lockfile,
             Err(err) => {
                 diagnostics.last_error = Some(err.clone());
@@ -301,6 +326,44 @@ impl PollingEventSource {
         finish(diagnostics, Some(live_snapshot), kind, message)
     }
 
+    fn refresh_install_state(&mut self) {
+        if self.last_install_check.elapsed() < Duration::from_secs(60) {
+            return;
+        }
+
+        self.last_install_check = Instant::now();
+        self.riot_installs_exists = self
+            .paths
+            .riot_installs_path
+            .as_ref()
+            .is_some_and(|path| path.is_file());
+    }
+
+    fn read_lockfile(&mut self) -> Result<RiotLockfile, String> {
+        let path = self
+            .paths
+            .lockfile_path
+            .as_ref()
+            .ok_or_else(|| "LOCALAPPDATA is not available".to_string())?
+            .clone();
+        let signature = file_signature(&path)?;
+
+        if let Some(cached) = self
+            .cached_lockfile
+            .as_ref()
+            .filter(|cached| cached.signature == signature)
+        {
+            return Ok(cached.value.clone());
+        }
+
+        let value = RiotLockfile::read_from_path(path)?;
+        self.cached_lockfile = Some(CachedLockfile {
+            signature,
+            value: value.clone(),
+        });
+        Ok(value)
+    }
+
     fn local_client_for(&mut self, lockfile: &RiotLockfile) -> Result<LocalClient, String> {
         if self
             .local_client
@@ -389,6 +452,15 @@ impl PollingEventSource {
             self.cached_rank = Some(rank);
         }
     }
+}
+
+fn file_signature(path: &Path) -> Result<FileSignature, String> {
+    let metadata =
+        fs::metadata(path).map_err(|err| format!("failed to stat Riot lockfile: {err}"))?;
+    Ok(FileSignature {
+        len: metadata.len(),
+        modified: metadata.modified().ok(),
+    })
 }
 
 impl EventSource for PollingEventSource {
@@ -730,9 +802,11 @@ fn first_u32(value: &Value, paths: &[&[&str]]) -> Option<u32> {
 
 #[cfg(test)]
 mod tests {
+    use std::{fs, time::SystemTime};
+
     use serde_json::json;
 
-    use super::{match_phase, normalize_live_snapshot};
+    use super::{file_signature, match_phase, normalize_live_snapshot};
     use crate::riot::state::{MatchPhase, PlayerIdentity};
 
     #[test]
@@ -776,5 +850,25 @@ mod tests {
 
         assert_eq!(snapshot.party.size, Some(2));
         assert_eq!(snapshot.score.expect("score").ally, 7);
+    }
+
+    #[test]
+    fn lockfile_signature_changes_when_contents_change() {
+        let path = std::env::temp_dir().join(format!(
+            "radianite-lockfile-signature-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .expect("clock should be valid")
+                .as_nanos()
+        ));
+        fs::write(&path, "short").expect("fixture should be written");
+        let before = file_signature(&path).expect("signature should load");
+
+        fs::write(&path, "a longer lockfile fixture").expect("fixture should change");
+        let after = file_signature(&path).expect("signature should reload");
+        fs::remove_file(path).expect("fixture should be removed");
+
+        assert_ne!(before, after);
     }
 }

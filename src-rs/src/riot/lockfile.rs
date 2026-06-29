@@ -51,13 +51,6 @@ pub fn default_paths() -> LockfilePaths {
 }
 
 impl RiotLockfile {
-    pub fn read_default() -> Result<Self, String> {
-        let path = default_paths()
-            .lockfile_path
-            .ok_or_else(|| "LOCALAPPDATA is not available".to_string())?;
-        Self::read_from_path(path)
-    }
-
     pub fn read_from_path(path: PathBuf) -> Result<Self, String> {
         let raw = fs::read_to_string(&path)
             .map_err(|err| format!("failed to read Riot lockfile: {err}"))?;
