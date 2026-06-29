@@ -41,6 +41,44 @@ impl RequestBudget {
 
         budget
     }
+
+    pub fn optimized_warm(scenario: Scenario, window: Duration) -> Self {
+        let seconds = window.as_secs();
+        match scenario {
+            Scenario::RiotClientOnly => Self {
+                local_riot: seconds / 3,
+                ..Self::default()
+            },
+            Scenario::ValorantMenus => {
+                let ticks = seconds / 3;
+                Self {
+                    local_riot: ticks
+                        + seconds / 12
+                        + div_ceil(seconds, 300)
+                        + div_ceil(seconds, 600),
+                    authenticated_riot: 1 + div_ceil(seconds, 300) * 2,
+                    public_https: 0,
+                    tauri_ipc_reads: 0,
+                }
+            }
+            Scenario::UnchangedLiveMatch => {
+                let ticks = seconds / 2;
+                Self {
+                    local_riot: ticks
+                        + seconds / 10
+                        + div_ceil(seconds, 300)
+                        + div_ceil(seconds, 600),
+                    authenticated_riot: 4,
+                    public_https: 0,
+                    tauri_ipc_reads: 0,
+                }
+            }
+        }
+    }
+}
+
+fn div_ceil(value: u64, divisor: u64) -> u64 {
+    value.div_ceil(divisor)
 }
 
 #[cfg(test)]
@@ -85,6 +123,37 @@ mod tests {
                 authenticated_riot: 41,
                 public_https: 4,
                 tauri_ipc_reads: 480,
+            }
+        );
+    }
+
+    #[test]
+    fn captures_optimized_warm_budgets() {
+        assert_eq!(
+            RequestBudget::optimized_warm(Scenario::RiotClientOnly, TEN_MINUTES),
+            RequestBudget {
+                local_riot: 200,
+                authenticated_riot: 0,
+                public_https: 0,
+                tauri_ipc_reads: 0,
+            }
+        );
+        assert_eq!(
+            RequestBudget::optimized_warm(Scenario::ValorantMenus, TEN_MINUTES),
+            RequestBudget {
+                local_riot: 253,
+                authenticated_riot: 5,
+                public_https: 0,
+                tauri_ipc_reads: 0,
+            }
+        );
+        assert_eq!(
+            RequestBudget::optimized_warm(Scenario::UnchangedLiveMatch, TEN_MINUTES),
+            RequestBudget {
+                local_riot: 363,
+                authenticated_riot: 4,
+                public_https: 0,
+                tauri_ipc_reads: 0,
             }
         );
     }
