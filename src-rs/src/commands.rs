@@ -2,7 +2,10 @@ use tauri::{AppHandle, Emitter, State};
 
 use crate::{
     app_state::AppState,
-    riot::state::{CoreStatus, DiagnosticSnapshot, LiveSnapshot, OverlayStatus, RpcStatus},
+    riot::{
+        state::{CoreStatus, DiagnosticSnapshot, LiveSnapshot, OverlayStatus, RpcStatus},
+        valorant_client::ValorantPresentation,
+    },
 };
 
 #[tauri::command]
@@ -39,6 +42,25 @@ pub async fn riot_get_live_snapshot(
     state: State<'_, AppState>,
 ) -> Result<Option<LiveSnapshot>, String> {
     Ok(state.live_snapshot().await)
+}
+
+#[tauri::command]
+pub async fn valorant_get_presentation(
+    state: State<'_, AppState>,
+    locale: String,
+    agent_id: Option<String>,
+    map_id: Option<String>,
+    tier: Option<u32>,
+) -> Result<ValorantPresentation, String> {
+    if !rust_i18n::available_locales!()
+        .iter()
+        .any(|available| *available == locale)
+    {
+        return Err(format!("unsupported UI locale: {locale}"));
+    }
+    state
+        .valorant_presentation(&locale, agent_id.as_deref(), map_id.as_deref(), tier)
+        .await
 }
 
 #[tauri::command]

@@ -25,6 +25,7 @@ import type {
   Settings,
   UpdaterState,
   LocalizedMessage,
+  ValorantPresentation,
 } from "@/lib/types"
 
 const localizedMessage = (
@@ -92,6 +93,7 @@ export function useRadianite() {
   const [diagnostics, setDiagnostics] =
     useState<DiagnosticSnapshot>(initialDiagnostics)
   const [snapshot, setSnapshot] = useState<LiveSnapshot | null>(null)
+  const [presentation, setPresentation] = useState<ValorantPresentation | null>(null)
   const [rpcStatus, setRpcStatus] = useState<RpcStatus>(initialRpcStatus)
   const [overlayStatus, setOverlayStatus] =
     useState<OverlayStatus>(initialOverlayStatus)
@@ -441,6 +443,32 @@ export function useRadianite() {
   }, [])
 
   useEffect(() => {
+    let active = true
+    if (!snapshot) {
+      setPresentation(null)
+      return
+    }
+    setPresentation(null)
+
+    invoke<ValorantPresentation>("valorant_get_presentation", {
+      locale: settings.uiLocale,
+      agentId: snapshot.agentId,
+      mapId: snapshot.mapId,
+      tier: snapshot.rank?.tier,
+    })
+      .then((nextPresentation) => {
+        if (active) setPresentation(nextPresentation)
+      })
+      .catch(() => {
+        if (active) setPresentation(null)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [snapshot?.agentId, snapshot?.mapId, snapshot?.rank?.tier, settings.uiLocale])
+
+  useEffect(() => {
     const timer = window.setInterval(() => {
       setUptimeMs(Date.now() - startedAt)
     }, 1000)
@@ -450,6 +478,7 @@ export function useRadianite() {
   return {
     diagnostics,
     snapshot,
+    presentation,
     rpcStatus,
     overlayStatus,
     updater,

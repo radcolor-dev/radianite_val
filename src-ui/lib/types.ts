@@ -87,6 +87,17 @@ export type LiveSnapshot = {
   updatedAt: string
 }
 
+export type ValorantPresentation = {
+  agentName?: string | null
+  agentIconUrl?: string | null
+  agentPortraitUrl?: string | null
+  mapName?: string | null
+  mapSplashUrl?: string | null
+  mapListViewIconUrl?: string | null
+  rankName?: string | null
+  rankIconUrl?: string | null
+}
+
 export type RpcStatus = {
   enabled: boolean
   connected: boolean

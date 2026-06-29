@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use tauri::AppHandle;
 use tokio::{
@@ -13,7 +13,7 @@ use crate::{
             now_timestamp, CoreStatus, CoreStatusKind, DiagnosticSnapshot, LiveSnapshot,
             LocalizedMessage, MatchPhase, OverlayStatus, RpcStatus,
         },
-        valorant_client::fetch_public_content_for_locale,
+        valorant_client::{ValorantContentCache, ValorantPresentation},
         watcher::{run_monitor_loop, PollResult},
     },
 };
@@ -25,7 +25,7 @@ pub struct AppState {
     discord: Arc<Mutex<DiscordRpcManager>>,
     overlay_status: Arc<RwLock<OverlayStatus>>,
     overlay_server: Arc<Mutex<Option<JoinHandle<()>>>>,
-    localized_content: Arc<Mutex<HashMap<String, crate::riot::valorant_client::ValorantContent>>>,
+    content_cache: ValorantContentCache,
 }
 
 struct AppInner {
@@ -69,7 +69,7 @@ impl AppState {
                 LocalizedMessage::key("status.overlay.notStarted"),
             ))),
             overlay_server: Arc::new(Mutex::new(None)),
-            localized_content: Arc::new(Mutex::new(HashMap::new())),
+            content_cache: ValorantContentCache::default(),
         }
     }
 
@@ -168,25 +168,30 @@ impl AppState {
     }
 
     pub async fn set_rpc_locale(&self, locale: String) -> RpcStatus {
-        let cached = self.localized_content.lock().await.get(&locale).cloned();
-        let content = match cached {
-            Some(content) => Some(content),
-            None => match fetch_public_content_for_locale(&locale).await {
-                Ok(content) => {
-                    self.localized_content
-                        .lock()
-                        .await
-                        .insert(locale.clone(), content.clone());
-                    Some(content)
-                }
-                Err(_) => None,
-            },
-        };
+        let content = self.content_cache.get(&locale).await.ok();
         let snapshot = self.live_snapshot().await;
         self.discord
             .lock()
             .await
             .set_locale(locale, content, snapshot.as_ref())
+    }
+
+    pub async fn valorant_presentation(
+        &self,
+        locale: &str,
+        agent_id: Option<&str>,
+        map_id: Option<&str>,
+        tier: Option<u32>,
+    ) -> Result<ValorantPresentation, String> {
+        self.content_cache
+            .get(locale)
+            .await
+            .map(|content| content.presentation(agent_id, map_id, tier))
+            .map_err(|err| err.message)
+    }
+
+    pub fn content_cache(&self) -> ValorantContentCache {
+        self.content_cache.clone()
     }
 
     pub async fn apply_poll_result(&self, result: PollResult) -> AppliedChanges {

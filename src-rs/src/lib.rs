@@ -81,6 +81,7 @@ pub fn run() {
             commands::riot_stop_monitor,
             commands::riot_get_diagnostics,
             commands::riot_get_live_snapshot,
+            commands::valorant_get_presentation,
             commands::discord_rpc_set_enabled,
             commands::discord_rpc_get_status,
             commands::discord_rpc_set_locale,

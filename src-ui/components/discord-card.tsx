@@ -5,13 +5,13 @@ import { IconBrandDiscord, IconPlayerPlay, IconPlayerStop } from "@tabler/icons-
 import { AppIcon } from "@/components/app-icon"
 import { Button } from "@/components/ui/button"
 import { Panel } from "@/components/panel"
-import { agentIconUrl, mapArt } from "@/lib/valorant-assets"
 import { cn } from "@/lib/utils"
-import type { LiveSnapshot, RpcPreview, RpcStatus } from "@/lib/types"
+import type { LiveSnapshot, RpcPreview, RpcStatus, ValorantPresentation } from "@/lib/types"
 
-export function DiscordCard({ rpc, snapshot, busy, onToggle }: {
+export function DiscordCard({ rpc, snapshot, presentation, busy, onToggle }: {
   rpc: RpcStatus
   snapshot: LiveSnapshot | null
+  presentation: ValorantPresentation | null
   busy: boolean
   onToggle: () => void
 }) {
@@ -40,7 +40,7 @@ export function DiscordCard({ rpc, snapshot, busy, onToggle }: {
 
         <p className="text-xs text-muted-foreground">{t("discord.friendsSee")}</p>
         {preview ? (
-          <DiscordActivity preview={preview} snapshot={snapshot} />
+          <DiscordActivity preview={preview} snapshot={snapshot} presentation={presentation} />
         ) : (
           <div className="rounded-lg border bg-[#1a1b1e] p-3 text-sm text-muted-foreground">
             {canToggle ? t("discord.noMatch") : t("discord.notConfigured")}
@@ -51,27 +51,15 @@ export function DiscordCard({ rpc, snapshot, busy, onToggle }: {
   )
 }
 
-function DiscordActivity({ preview, snapshot }: { preview: RpcPreview; snapshot: LiveSnapshot | null }) {
+function DiscordActivity({ preview, snapshot, presentation }: { preview: RpcPreview; snapshot: LiveSnapshot | null; presentation: ValorantPresentation | null }) {
   const { t } = useTranslation()
   const elapsed = useElapsed(preview.startedAt ?? null)
-  const agentUrl = agentIconUrl(snapshot?.agentId)
-  const [largeUrl, setLargeUrl] = useState<string | null>(null)
-
-  useEffect(() => {
-    let active = true
-    async function resolveLargeImage() {
-      if (!snapshot) return void (active && setLargeUrl(null))
-      if (snapshot.phase === "pregame") return void (active && setLargeUrl(agentUrl))
-      if (snapshot.phase === "ingame" || snapshot.phase === "range") {
-        const art = await mapArt(snapshot.mapId, snapshot.mapName)
-        if (active) setLargeUrl(art?.listViewIcon ?? agentUrl)
-        return
-      }
-      if (active) setLargeUrl(null)
-    }
-    void resolveLargeImage()
-    return () => { active = false }
-  }, [snapshot, agentUrl])
+  const agentUrl = presentation?.agentIconUrl ?? null
+  const largeUrl = snapshot?.phase === "pregame"
+    ? agentUrl
+    : snapshot?.phase === "ingame" || snapshot?.phase === "range"
+      ? presentation?.mapListViewIconUrl ?? agentUrl
+      : null
 
   return (
     <div className="rounded-lg border border-white/5 bg-[#232428] p-3 text-[#dbdee1]" dir="auto">

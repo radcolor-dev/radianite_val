@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react"
 import type { TFunction } from "i18next"
 import { useTranslation } from "react-i18next"
 import {
@@ -12,42 +11,24 @@ import {
 } from "@tabler/icons-react"
 
 import { AppIcon } from "@/components/app-icon"
-import { agentPortraitUrl, localizedGameNames, mapArt, rankIconUrl, type LocalizedGameNames } from "@/lib/valorant-assets"
 import { phaseLabel, playerName, queueLabel } from "@/lib/format"
 import { cn } from "@/lib/utils"
-import type { LiveSnapshot } from "@/lib/types"
+import type { LiveSnapshot, ValorantPresentation } from "@/lib/types"
 
 const LIVE_PHASES = new Set(["pregame", "ingame", "range"])
 
-export function LiveMatchHero({ snapshot }: { snapshot: LiveSnapshot | null }) {
-  const { t, i18n } = useTranslation()
+export function LiveMatchHero({
+  snapshot,
+  presentation,
+}: {
+  snapshot: LiveSnapshot | null
+  presentation: ValorantPresentation | null
+}) {
+  const { t } = useTranslation()
   const isLive = snapshot ? LIVE_PHASES.has(snapshot.phase) : false
-  const agentUrl = agentPortraitUrl(snapshot?.agentId)
-  const [mapUrl, setMapUrl] = useState<string | null>(null)
-  const [rankUrl, setRankUrl] = useState<string | null>(null)
-  const [localizedNames, setLocalizedNames] = useState<LocalizedGameNames | null>(null)
-
-  useEffect(() => {
-    let active = true
-    setMapUrl(null)
-    setRankUrl(null)
-    setLocalizedNames(null)
-    if (!snapshot) return
-
-    void mapArt(snapshot.mapId, snapshot.mapName).then((art) => {
-      if (active) setMapUrl(art?.splash ?? null)
-    })
-    void rankIconUrl(snapshot.rank?.tier, snapshot.rank?.iconUrl).then((url) => {
-      if (active) setRankUrl(url)
-    })
-    void localizedGameNames(snapshot, i18n.language).then((names) => {
-      if (active) setLocalizedNames(names)
-    })
-
-    return () => {
-      active = false
-    }
-  }, [snapshot, i18n.language])
+  const agentUrl = presentation?.agentPortraitUrl ?? null
+  const mapUrl = presentation?.mapSplashUrl ?? null
+  const rankUrl = presentation?.rankIconUrl ?? snapshot?.rank?.iconUrl ?? null
 
   if (!snapshot) {
     return (
@@ -69,7 +50,7 @@ export function LiveMatchHero({ snapshot }: { snapshot: LiveSnapshot | null }) {
     ? `${snapshot.score.ally} – ${snapshot.score.enemy}`
     : null
   const standby = isLive ? null : standbyCopy(snapshot, t)
-  const displayMapName = localizedNames?.mapName ?? snapshot.mapName
+  const displayMapName = presentation?.mapName ?? snapshot.mapName
 
   return (
     <section className="relative flex flex-1 flex-col overflow-hidden rounded-xl border bg-card">
@@ -85,7 +66,7 @@ export function LiveMatchHero({ snapshot }: { snapshot: LiveSnapshot | null }) {
         {agentUrl ? (
           <img
             src={agentUrl}
-            alt={localizedNames?.agentName ?? snapshot.agentName ?? ""}
+            alt={presentation?.agentName ?? snapshot.agentName ?? ""}
             className="absolute bottom-0 start-0 h-[105%] max-w-[55%] object-contain object-left-bottom drop-shadow-2xl rtl:object-right-bottom"
           />
         ) : null}
@@ -125,7 +106,7 @@ export function LiveMatchHero({ snapshot }: { snapshot: LiveSnapshot | null }) {
         )}
       </div>
 
-      <StatStrip snapshot={snapshot} rankUrl={rankUrl} score={score} localizedNames={localizedNames} />
+      <StatStrip snapshot={snapshot} rankUrl={rankUrl} score={score} presentation={presentation} />
     </section>
   )
 }
@@ -144,12 +125,12 @@ function StatStrip({
   snapshot,
   rankUrl,
   score,
-  localizedNames,
+  presentation,
 }: {
   snapshot: LiveSnapshot | null
   rankUrl: string | null
   score?: string | null
-  localizedNames?: LocalizedGameNames | null
+  presentation?: ValorantPresentation | null
 }) {
   const { t } = useTranslation()
   const empty = t("common.notAvailable")
@@ -158,9 +139,9 @@ function StatStrip({
   const party = snapshot?.party.size
     ? `${snapshot.party.size} / ${snapshot.party.maxSize ?? snapshot.party.size}`
     : empty
-  const agent = localizedNames?.agentName ?? snapshot?.agentName ?? empty
-  const map = localizedNames?.mapName ?? snapshot?.mapName ?? empty
-  const rankName = localizedNames?.rankName ?? snapshot?.rank?.tierName ??
+  const agent = presentation?.agentName ?? snapshot?.agentName ?? empty
+  const map = presentation?.mapName ?? snapshot?.mapName ?? empty
+  const rankName = presentation?.rankName ?? snapshot?.rank?.tierName ??
     (snapshot?.rank?.tier ? t("match.tier", { tier: snapshot.rank.tier }) : t("match.unranked"))
   const rr = snapshot?.rank?.rankedRating != null
     ? `${snapshot.rank.rankedRating} ${t("match.rr")}`

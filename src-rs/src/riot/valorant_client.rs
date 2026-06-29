@@ -1,6 +1,13 @@
+use std::{
+    collections::HashMap,
+    sync::Arc,
+    time::{Duration, Instant},
+};
+
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tokio::sync::Mutex;
 
 use super::{
     local_client::{EntitlementsToken, ExternalSessions},
@@ -217,12 +224,16 @@ pub struct ValorantContent {
 struct ContentAgent {
     uuid: String,
     display_name: String,
+    display_icon: Option<String>,
+    full_portrait: Option<String>,
 }
 
 #[derive(Debug, Clone)]
 struct ContentMap {
     map_url: String,
     display_name: String,
+    splash: Option<String>,
+    list_view_icon: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -230,6 +241,68 @@ struct ContentCompetitiveTier {
     tier: u32,
     name: String,
     icon_url: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ValorantPresentation {
+    pub agent_name: Option<String>,
+    pub agent_icon_url: Option<String>,
+    pub agent_portrait_url: Option<String>,
+    pub map_name: Option<String>,
+    pub map_splash_url: Option<String>,
+    pub map_list_view_icon_url: Option<String>,
+    pub rank_name: Option<String>,
+    pub rank_icon_url: Option<String>,
+}
+
+#[derive(Clone, Default)]
+pub struct ValorantContentCache {
+    inner: Arc<Mutex<HashMap<String, CachedValorantContent>>>,
+}
+
+enum CachedValorantContent {
+    Ready(ValorantContent),
+    Failed {
+        attempted_at: Instant,
+        message: String,
+    },
+}
+
+impl ValorantContentCache {
+    pub async fn get(&self, locale: &str) -> Result<ValorantContent, ValorantHttpError> {
+        let mut content = self.inner.lock().await;
+        match content.get(locale) {
+            Some(CachedValorantContent::Ready(cached)) => return Ok(cached.clone()),
+            Some(CachedValorantContent::Failed {
+                attempted_at,
+                message,
+            }) if attempted_at.elapsed() < Duration::from_secs(300) => {
+                return Err(ValorantHttpError::transport(message.clone()));
+            }
+            _ => {}
+        }
+
+        match fetch_public_content_for_locale(locale).await {
+            Ok(fetched) => {
+                content.insert(
+                    locale.to_string(),
+                    CachedValorantContent::Ready(fetched.clone()),
+                );
+                Ok(fetched)
+            }
+            Err(err) => {
+                content.insert(
+                    locale.to_string(),
+                    CachedValorantContent::Failed {
+                        attempted_at: Instant::now(),
+                        message: err.message.clone(),
+                    },
+                );
+                Err(err)
+            }
+        }
+    }
 }
 
 impl ValorantContent {
@@ -260,10 +333,40 @@ impl ValorantContent {
             .find(|competitive_tier| competitive_tier.tier == tier)
             .and_then(|competitive_tier| competitive_tier.icon_url.clone())
     }
-}
 
-pub async fn fetch_public_content() -> Result<ValorantContent, ValorantHttpError> {
-    fetch_public_content_for_locale("en-US").await
+    pub fn presentation(
+        &self,
+        agent_id: Option<&str>,
+        map_id: Option<&str>,
+        tier: Option<u32>,
+    ) -> ValorantPresentation {
+        let agent = agent_id.and_then(|uuid| {
+            self.agents
+                .iter()
+                .find(|agent| agent.uuid.eq_ignore_ascii_case(uuid))
+        });
+        let map = map_id.and_then(|map_url| {
+            self.maps
+                .iter()
+                .find(|map| map.map_url.eq_ignore_ascii_case(map_url))
+        });
+        let rank = tier.and_then(|tier| {
+            self.competitive_tiers
+                .iter()
+                .find(|competitive_tier| competitive_tier.tier == tier)
+        });
+
+        ValorantPresentation {
+            agent_name: agent.map(|agent| agent.display_name.clone()),
+            agent_icon_url: agent.and_then(|agent| agent.display_icon.clone()),
+            agent_portrait_url: agent.and_then(|agent| agent.full_portrait.clone()),
+            map_name: map.map(|map| map.display_name.clone()),
+            map_splash_url: map.and_then(|map| map.splash.clone()),
+            map_list_view_icon_url: map.and_then(|map| map.list_view_icon.clone()),
+            rank_name: rank.map(|rank| rank.name.clone()),
+            rank_icon_url: rank.and_then(|rank| rank.icon_url.clone()),
+        }
+    }
 }
 
 pub async fn fetch_public_content_for_locale(
@@ -292,6 +395,8 @@ pub async fn fetch_public_content_for_locale(
             Some(ContentAgent {
                 uuid: agent.uuid?,
                 display_name: agent.display_name?,
+                display_icon: agent.display_icon,
+                full_portrait: agent.full_portrait,
             })
         })
         .collect();
@@ -303,6 +408,8 @@ pub async fn fetch_public_content_for_locale(
             Some(ContentMap {
                 map_url: map.map_url?,
                 display_name: map.display_name?,
+                splash: map.splash,
+                list_view_icon: map.list_view_icon,
             })
         })
         .collect();
@@ -368,6 +475,8 @@ struct ValorantApiList<T> {
 struct AgentDto {
     uuid: Option<String>,
     display_name: Option<String>,
+    display_icon: Option<String>,
+    full_portrait: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -375,6 +484,8 @@ struct AgentDto {
 struct MapDto {
     map_url: Option<String>,
     display_name: Option<String>,
+    splash: Option<String>,
+    list_view_icon: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -537,7 +648,7 @@ mod tests {
 
     use super::{
         active_season_id, extract_region_and_shard, rank_from_competitive_updates, rank_from_mmr,
-        ContentCompetitiveTier, ValorantClient, ValorantContent,
+        ContentAgent, ContentCompetitiveTier, ContentMap, ValorantClient, ValorantContent,
     };
     use crate::riot::local_client::EntitlementsToken;
     use crate::riot::local_client::{ExternalSession, LaunchConfiguration};
@@ -630,6 +741,48 @@ mod tests {
         assert_eq!(
             content.competitive_tier_icon_url(24).as_deref(),
             Some("https://example.test/diamond.png")
+        );
+    }
+
+    #[test]
+    fn builds_ui_presentation_from_shared_content() {
+        let content = ValorantContent {
+            agents: vec![ContentAgent {
+                uuid: "agent-id".to_string(),
+                display_name: "Agent".to_string(),
+                display_icon: Some("https://example.test/agent-icon.png".to_string()),
+                full_portrait: Some("https://example.test/agent-portrait.png".to_string()),
+            }],
+            maps: vec![ContentMap {
+                map_url: "/Game/Maps/Test/Test".to_string(),
+                display_name: "Test Map".to_string(),
+                splash: Some("https://example.test/map-splash.png".to_string()),
+                list_view_icon: Some("https://example.test/map-list.png".to_string()),
+            }],
+            competitive_tiers: vec![ContentCompetitiveTier {
+                tier: 24,
+                name: "Diamond 1".to_string(),
+                icon_url: Some("https://example.test/rank.png".to_string()),
+            }],
+        };
+
+        let presentation =
+            content.presentation(Some("AGENT-ID"), Some("/game/maps/test/test"), Some(24));
+
+        assert_eq!(presentation.agent_name.as_deref(), Some("Agent"));
+        assert_eq!(
+            presentation.agent_portrait_url.as_deref(),
+            Some("https://example.test/agent-portrait.png")
+        );
+        assert_eq!(presentation.map_name.as_deref(), Some("Test Map"));
+        assert_eq!(
+            presentation.map_list_view_icon_url.as_deref(),
+            Some("https://example.test/map-list.png")
+        );
+        assert_eq!(presentation.rank_name.as_deref(), Some("Diamond 1"));
+        assert_eq!(
+            presentation.rank_icon_url.as_deref(),
+            Some("https://example.test/rank.png")
         );
     }
 

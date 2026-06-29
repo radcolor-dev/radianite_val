@@ -18,9 +18,9 @@ use super::{
         LocalizedMessage, MatchPhase, PartySnapshot, PlayerIdentity, RankSnapshot, ScoreSnapshot,
     },
     valorant_client::{
-        active_season_id, extract_region_and_shard, fetch_public_client_version,
-        fetch_public_content, i32_path, rank_from_competitive_updates, rank_from_mmr, str_path,
-        u32_path, ValorantClient, ValorantContent,
+        active_season_id, extract_region_and_shard, fetch_public_client_version, i32_path,
+        rank_from_competitive_updates, rank_from_mmr, str_path, u32_path, ValorantClient,
+        ValorantContent, ValorantContentCache,
     },
 };
 
@@ -53,11 +53,12 @@ pub struct PollingEventSource {
     client_version: Option<String>,
     last_version_attempt: Option<Instant>,
     content: Option<ValorantContent>,
+    content_cache: ValorantContentCache,
     last_content_attempt: Option<Instant>,
 }
 
 impl PollingEventSource {
-    pub fn new() -> Self {
+    pub fn new(content_cache: ValorantContentCache) -> Self {
         Self {
             cached_rank: None,
             active_season_id: None,
@@ -65,6 +66,7 @@ impl PollingEventSource {
             client_version: None,
             last_version_attempt: None,
             content: None,
+            content_cache,
             last_content_attempt: None,
         }
     }
@@ -324,7 +326,7 @@ impl PollingEventSource {
         }
 
         self.last_content_attempt = Some(Instant::now());
-        if let Ok(content) = fetch_public_content().await {
+        if let Ok(content) = self.content_cache.get("en-US").await {
             self.content = Some(content);
         }
     }
@@ -379,7 +381,7 @@ impl EventSource for PollingEventSource {
 }
 
 pub async fn run_monitor_loop(state: AppState, app: AppHandle, mut stop_rx: oneshot::Receiver<()>) {
-    let mut source = PollingEventSource::new();
+    let mut source = PollingEventSource::new(state.content_cache());
 
     loop {
         let result = source.poll().await;

@@ -94,7 +94,7 @@ function App() {
       <main className="flex-1 overflow-y-auto p-3">
         <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-3">
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1.6fr)_minmax(22rem,1fr)]">
-            <LiveMatchHero snapshot={r.snapshot} />
+            <LiveMatchHero snapshot={r.snapshot} presentation={r.presentation} />
 
             <div className="flex flex-col gap-3">
               <CoreStatusCard diagnostics={r.diagnostics} />
@@ -110,6 +110,7 @@ function App() {
             <DiscordCard
               rpc={r.rpcStatus}
               snapshot={r.snapshot}
+              presentation={r.presentation}
               busy={r.busy}
               onToggle={r.toggleRpc}
             />
