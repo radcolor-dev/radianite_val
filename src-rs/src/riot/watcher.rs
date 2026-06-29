@@ -41,12 +41,34 @@ pub struct PollResult {
 
 impl PollResult {
     fn next_delay(&self) -> Duration {
-        match self.status.kind {
-            CoreStatusKind::ValorantReady
-            | CoreStatusKind::Degraded
-            | CoreStatusKind::AuthExpired => Duration::from_secs(2),
-            _ => Duration::from_secs(1),
+        poll_delay(
+            &self.status.kind,
+            self.live_snapshot.as_ref().map(|snapshot| &snapshot.phase),
+        )
+    }
+}
+
+fn poll_delay(kind: &CoreStatusKind, phase: Option<&MatchPhase>) -> Duration {
+    match (kind, phase) {
+        (
+            CoreStatusKind::ValorantReady,
+            Some(
+                MatchPhase::Matchmaking
+                | MatchPhase::Pregame
+                | MatchPhase::Ingame
+                | MatchPhase::Range,
+            ),
+        )
+        | (CoreStatusKind::ValorantLaunching, _)
+        | (CoreStatusKind::Degraded, _)
+        | (CoreStatusKind::AuthExpired, _) => Duration::from_secs(2),
+        (CoreStatusKind::ValorantReady, _) | (CoreStatusKind::RiotClientOnly, _) => {
+            Duration::from_secs(3)
         }
+        (CoreStatusKind::NoRiotInstall, _) | (CoreStatusKind::RiotClientClosed, _) => {
+            Duration::from_secs(5)
+        }
+        (CoreStatusKind::Disconnected, _) | (CoreStatusKind::Error, _) => Duration::from_secs(3),
     }
 }
 
@@ -980,7 +1002,7 @@ mod tests {
 
     use super::{
         cache_is_fresh, credential_cache_ttl, file_signature, match_phase, normalize_live_snapshot,
-        session_cache_ttl, CREDENTIAL_CACHE_FALLBACK_TTL, CREDENTIAL_CACHE_MAX_TTL,
+        poll_delay, session_cache_ttl, CREDENTIAL_CACHE_FALLBACK_TTL, CREDENTIAL_CACHE_MAX_TTL,
         IDENTITY_CACHE_TTL,
     };
     use crate::riot::state::{MatchPhase, PlayerIdentity};
@@ -1135,6 +1157,24 @@ mod tests {
         assert_eq!(
             credential_cache_ttl("not-a-jwt", 1_000),
             CREDENTIAL_CACHE_FALLBACK_TTL
+        );
+    }
+
+    #[test]
+    fn poll_delay_keeps_live_phases_fast_and_idle_states_slow() {
+        use crate::riot::state::CoreStatusKind;
+
+        assert_eq!(
+            poll_delay(&CoreStatusKind::ValorantReady, Some(&MatchPhase::Ingame)),
+            std::time::Duration::from_secs(2)
+        );
+        assert_eq!(
+            poll_delay(&CoreStatusKind::ValorantReady, Some(&MatchPhase::Menus)),
+            std::time::Duration::from_secs(3)
+        );
+        assert_eq!(
+            poll_delay(&CoreStatusKind::RiotClientClosed, None),
+            std::time::Duration::from_secs(5)
         );
     }
 }
