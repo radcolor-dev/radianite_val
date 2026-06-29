@@ -92,6 +92,7 @@ pub struct PollingEventSource {
     cached_rank: Option<RankSnapshot>,
     active_season_id: Option<String>,
     last_rank_fetch: Option<Instant>,
+    last_phase: Option<MatchPhase>,
     client_version: Option<String>,
     last_version_attempt: Option<Instant>,
     content: Option<ValorantContent>,
@@ -193,6 +194,7 @@ impl PollingEventSource {
             cached_rank: None,
             active_season_id: None,
             last_rank_fetch: None,
+            last_phase: None,
             client_version: None,
             last_version_attempt: None,
             content: None,
@@ -399,7 +401,8 @@ impl PollingEventSource {
         };
 
         if let Some(client) = valorant_client.as_ref() {
-            self.refresh_rank(client, &puuid).await;
+            self.refresh_rank(client, &puuid, &live_snapshot.phase)
+                .await;
             live_snapshot.rank = self.cached_rank.clone();
             self.enrich_phase(client, &puuid, &mut live_snapshot).await;
         }
@@ -707,16 +710,17 @@ impl PollingEventSource {
         }
     }
 
-    async fn refresh_rank(&mut self, client: &ValorantClient, puuid: &str) {
-        let should_fetch = self
-            .last_rank_fetch
-            .is_none_or(|last_fetch| last_fetch.elapsed() >= Duration::from_secs(30));
+    async fn refresh_rank(&mut self, client: &ValorantClient, puuid: &str, phase: &MatchPhase) {
+        let now = Instant::now();
+        let should_fetch =
+            rank_refresh_due(self.last_phase.as_ref(), phase, self.last_rank_fetch, now);
+        self.last_phase = Some(phase.clone());
 
         if !should_fetch {
             return;
         }
 
-        self.last_rank_fetch = Some(Instant::now());
+        self.last_rank_fetch = Some(now);
 
         if self.active_season_id.is_none() {
             if let Ok(content) = client.content().await {
@@ -784,6 +788,31 @@ fn credential_cache_ttl(access_token: &str, now_unix: u64) -> Duration {
         .map(|ttl| ttl.min(CREDENTIAL_CACHE_MAX_TTL))
         .filter(|ttl| !ttl.is_zero())
         .unwrap_or(CREDENTIAL_CACHE_FALLBACK_TTL)
+}
+
+fn rank_refresh_due(
+    previous_phase: Option<&MatchPhase>,
+    phase: &MatchPhase,
+    last_fetch: Option<Instant>,
+    now: Instant,
+) -> bool {
+    if last_fetch.is_none() {
+        return true;
+    }
+
+    let match_just_ended = previous_phase.is_some_and(|previous| {
+        matches!(previous, MatchPhase::Ingame | MatchPhase::Range)
+            && matches!(phase, MatchPhase::Menus | MatchPhase::Matchmaking)
+    });
+    if match_just_ended {
+        return true;
+    }
+
+    matches!(phase, MatchPhase::Menus)
+        && last_fetch.is_some_and(|last_fetch| {
+            now.checked_duration_since(last_fetch)
+                .is_some_and(|elapsed| elapsed >= Duration::from_secs(300))
+        })
 }
 
 fn file_signature(path: &Path) -> Result<FileSignature, String> {
@@ -1098,8 +1127,8 @@ mod tests {
 
     use super::{
         cache_is_fresh, credential_cache_ttl, file_signature, match_phase, normalize_live_snapshot,
-        poll_delay, session_cache_ttl, CoregameMetadata, CREDENTIAL_CACHE_FALLBACK_TTL,
-        CREDENTIAL_CACHE_MAX_TTL, IDENTITY_CACHE_TTL,
+        poll_delay, rank_refresh_due, session_cache_ttl, CoregameMetadata,
+        CREDENTIAL_CACHE_FALLBACK_TTL, CREDENTIAL_CACHE_MAX_TTL, IDENTITY_CACHE_TTL,
     };
     use crate::riot::state::{MatchPhase, PlayerIdentity};
     use crate::riot::{
@@ -1310,5 +1339,28 @@ mod tests {
         assert_eq!(metadata.match_id, "match-1");
         assert_eq!(metadata.map_id.as_deref(), Some("/Game/Maps/Ascent/Ascent"));
         assert_eq!(metadata.agent_id.as_deref(), Some("self-agent"));
+    }
+
+    #[test]
+    fn rank_refreshes_after_match_but_not_during_it() {
+        let fetched_at = std::time::Instant::now();
+        assert!(!rank_refresh_due(
+            Some(&MatchPhase::Ingame),
+            &MatchPhase::Ingame,
+            Some(fetched_at),
+            fetched_at + std::time::Duration::from_secs(600)
+        ));
+        assert!(rank_refresh_due(
+            Some(&MatchPhase::Ingame),
+            &MatchPhase::Menus,
+            Some(fetched_at),
+            fetched_at + std::time::Duration::from_secs(1)
+        ));
+        assert!(rank_refresh_due(
+            Some(&MatchPhase::Menus),
+            &MatchPhase::Menus,
+            Some(fetched_at),
+            fetched_at + std::time::Duration::from_secs(300)
+        ));
     }
 }
