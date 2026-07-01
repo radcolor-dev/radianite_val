@@ -12,6 +12,11 @@ import { useTranslation } from "react-i18next"
 
 import { AppIcon } from "@/components/app-icon"
 import { Button } from "@/components/ui/button"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { statusPill, type StatusTone } from "@/lib/format"
 import type { CoreStatus } from "@/lib/types"
@@ -68,15 +73,20 @@ export function TitleBar({
       </div>
 
       <div className="flex items-center gap-2">
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          onClick={onOpenSettings}
-          aria-label={t("titleBar.openSettings")}
-          className="size-8"
-        >
-          <IconSettings />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              onClick={onOpenSettings}
+              aria-label={t("titleBar.openSettings")}
+              className="size-8"
+            >
+              <IconSettings />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t("titleBar.openSettings")}</TooltipContent>
+        </Tooltip>
         <Button
           size="sm"
           variant="outline"
@@ -144,16 +154,21 @@ function WindowButton({
   danger?: boolean
 }) {
   return (
-    <button
-      type="button"
-      aria-label={label}
-      onClick={onClick}
-      className={cn(
-        "flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
-        danger && "hover:bg-destructive hover:text-destructive-foreground",
-      )}
-    >
-      {children}
-    </button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label={label}
+          onClick={onClick}
+          className={cn(
+            "flex size-8 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
+            danger && "hover:bg-destructive hover:text-destructive-foreground",
+          )}
+        >
+          {children}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
   )
 }
