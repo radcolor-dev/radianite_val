@@ -35,6 +35,7 @@ export function UpdatesCard({ updater, version, canInstall, lastChecked, onCheck
 }) {
   const { t } = useTranslation()
   const checking = updater.status === "checking" || updater.status === "installing"
+  const activelyChecking = updater.status === "checking"
   const current = updater.currentVersion ?? version ?? t("common.notAvailable")
   const hasUpdate = updater.status === "available" && Boolean(updater.version)
   const releaseNotes = hasUpdate ? cleanNotes(updater.body) : null
@@ -59,7 +60,7 @@ export function UpdatesCard({ updater, version, canInstall, lastChecked, onCheck
         {releaseNotes ? <div className="rounded-lg border bg-background/40 p-3"><p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-foreground"><IconSparkles className="size-3.5 text-primary" />{t("updates.whatsNew")}</p><p className="line-clamp-3 text-xs whitespace-pre-line text-muted-foreground">{releaseNotes}</p></div> : null}
         <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><IconShieldCheck className="size-3.5 text-success" />{t("updates.signed")}</p>
         <div className="grid grid-cols-2 gap-2">
-          <Button variant="outline" size="sm" onClick={onCheck} disabled={checking}><IconRefresh data-icon="inline-start" />{t("updates.check")}</Button>
+          <Button variant="outline" size="sm" onClick={onCheck} disabled={checking} aria-busy={activelyChecking}><IconRefresh data-icon="inline-start" className={cn(activelyChecking && "animate-spin")} />{t("updates.check")}</Button>
           <Button size="sm" onClick={onInstall} disabled={!canInstall || checking}><IconDownload data-icon="inline-start" />{t("updates.install")}</Button>
         </div>
       </div>
