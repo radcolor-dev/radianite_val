@@ -144,7 +144,7 @@ function App() {
           <StatusBar
             status={r.diagnostics.status}
             lastSync={r.lastSync}
-            uptimeMs={r.uptimeMs}
+            startedAt={r.startedAt}
           />
 
           {settingsOpen ? (

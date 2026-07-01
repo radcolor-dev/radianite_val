@@ -2,7 +2,14 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/lexend";
-@import "@fontsource/source-code-pro";
+
+@font-face {
+  font-family: "Source Code Pro";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("@fontsource/source-code-pro/files/source-code-pro-latin-400-normal.woff2") format("woff2");
+}
 
 @custom-variant dark (&:is(.dark *));
 

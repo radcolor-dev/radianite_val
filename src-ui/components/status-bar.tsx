@@ -4,6 +4,7 @@ import {
   IconRefreshDot,
   IconWifi,
 } from "@tabler/icons-react"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
 
@@ -37,14 +38,22 @@ function connectionHealth(status: CoreStatus): {
 export function StatusBar({
   status,
   lastSync,
-  uptimeMs,
+  startedAt,
 }: {
   status: CoreStatus
   lastSync: Date | null
-  uptimeMs: number
+  startedAt: number
 }) {
   const { t } = useTranslation()
   const health = connectionHealth(status)
+  const [uptimeMs, setUptimeMs] = useState(() => Date.now() - startedAt)
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setUptimeMs(Date.now() - startedAt)
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [startedAt])
 
   return (
     <footer className="flex h-11 shrink-0 items-center justify-between gap-4 border-t bg-background/80 px-4 text-xs backdrop-blur">

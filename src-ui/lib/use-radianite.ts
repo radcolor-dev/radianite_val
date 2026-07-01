@@ -123,7 +123,6 @@ export function useRadianite() {
   const [lastSync, setLastSync] = useState<Date | null>(null)
   const [lastChecked, setLastChecked] = useState<Date | null>(null)
   const [startedAt] = useState<number>(() => Date.now())
-  const [uptimeMs, setUptimeMs] = useState(0)
   const [settings, setSettings] = useState<Settings>(defaultSettings)
   const [backendReady, setBackendReady] = useState(false)
   const [settingsReady, setSettingsReady] = useState(false)
@@ -506,13 +505,6 @@ export function useRadianite() {
     }
   }, [snapshot?.agentId, snapshot?.mapId, snapshot?.rank?.tier, settings.uiLocale])
 
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setUptimeMs(Date.now() - startedAt)
-    }, 1000)
-    return () => window.clearInterval(timer)
-  }, [startedAt])
-
   return {
     diagnostics,
     snapshot,
@@ -525,7 +517,7 @@ export function useRadianite() {
     appVersion,
     lastSync,
     lastChecked,
-    uptimeMs,
+    startedAt,
     settings,
     initializing: !backendReady || !settingsReady,
     setSetting,
