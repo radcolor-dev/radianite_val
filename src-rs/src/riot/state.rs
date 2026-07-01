@@ -167,6 +167,7 @@ pub struct LiveSnapshot {
     pub region: Option<String>,
     pub shard: Option<String>,
     pub queue_id: Option<String>,
+    pub queue_key: Option<String>,
     pub party: PartySnapshot,
     pub map_id: Option<String>,
     pub map_name: Option<String>,

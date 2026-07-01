@@ -60,6 +60,7 @@ export type LiveSnapshot = {
   region?: string | null
   shard?: string | null
   queueId?: string | null
+  queueKey?: string | null
   party: {
     state?: string | null
     size?: number | null

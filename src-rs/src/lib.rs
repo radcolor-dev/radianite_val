@@ -3,6 +3,7 @@ mod commands;
 mod discord_rpc;
 mod overlay;
 mod riot;
+mod settings;
 
 // Missing community translation keys fall back to this English catalog.
 rust_i18n::i18n!("locales", fallback = "en-US");
@@ -16,7 +17,6 @@ use tauri::{
 };
 use tauri_plugin_store::StoreExt;
 
-const SETTINGS_STORE: &str = "settings.json";
 const DEFAULT_MINIMIZE_TO_TRAY: bool = true;
 
 #[cfg(not(debug_assertions))]
@@ -97,6 +97,8 @@ pub fn run() {
             commands::discord_rpc_set_locale,
             commands::localization_set_ui_locale,
             commands::overlay_get_status,
+            commands::settings_initialize,
+            commands::settings_set,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -152,7 +154,7 @@ fn show_main_window(app: &tauri::AppHandle) {
 }
 
 fn minimize_to_tray_enabled(app: &tauri::AppHandle) -> bool {
-    app.get_store(SETTINGS_STORE)
+    app.get_store(settings::SETTINGS_STORE)
         .and_then(|store| store.get("minimizeToTray"))
         .and_then(|value| value.as_bool())
         .unwrap_or(DEFAULT_MINIMIZE_TO_TRAY)

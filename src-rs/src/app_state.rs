@@ -342,6 +342,7 @@ mod tests {
             region: Some("ap".to_string()),
             shard: Some("ap".to_string()),
             queue_id: Some("competitive".to_string()),
+            queue_key: Some("competitive".to_string()),
             party: PartySnapshot {
                 state: None,
                 size: Some(1),

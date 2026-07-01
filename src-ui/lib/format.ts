@@ -30,29 +30,13 @@ export function statusPill(kind: CoreStatusKind): {
   }
 }
 
-const QUEUE_ALIASES: Record<string, string> = {
-  gungame: "ggteam",
-  escalation: "ggteam",
-  oneforall: "onefa",
-  replication: "onefa",
-  snowballfight: "snowball",
-  teamdeathmatch: "hurm",
-  fortcollins: "retake",
-  dodgeball: "knockout",
-  allrandomonesite: "aros",
-  npev2: "basictraining",
-  exampleplayertestbot: "botmatch",
-  ggrush: "ggteam",
-}
-
 export function phaseLabel(phase: MatchPhase) {
   return i18n.t(`match.phaseLabel.${phase}`, { defaultValue: labelize(phase) })
 }
 
-export function queueLabel(queueId?: string | null) {
+export function queueLabel(queueId?: string | null, queueKey?: string | null) {
   if (!queueId) return null
-  const raw = queueId.toLowerCase()
-  const key = QUEUE_ALIASES[raw] ?? raw
+  const key = queueKey ?? queueId.toLowerCase()
   return i18n.t(`match.queueLabel.${key}`, { defaultValue: labelize(queueId) })
 }
 

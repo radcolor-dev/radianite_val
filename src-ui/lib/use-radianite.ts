@@ -1,19 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { convertFileSrc, invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
 import { getVersion } from "@tauri-apps/api/app"
 import { openUrl } from "@tauri-apps/plugin-opener"
 import { relaunch } from "@tauri-apps/plugin-process"
 import { check, type DownloadEvent, type Update } from "@tauri-apps/plugin-updater"
-import { load, type Store } from "@tauri-apps/plugin-store"
-import {
-  disable as disableAutostart,
-  enable as enableAutostart,
-  isEnabled as isAutostartEnabled,
-} from "@tauri-apps/plugin-autostart"
 import { toast } from "sonner"
 
-import i18n, { applyUiLocale, detectedLocale, resolveLocale } from "@/lib/i18n"
+import i18n, { applyUiLocale, detectedLocale } from "@/lib/i18n"
 
 import type {
   AppSnapshot,
@@ -88,7 +82,10 @@ const defaultSettings: Settings = {
   rpcLocale: detectedLocale("rpc"),
 }
 
-const SETTINGS_STORE = "settings.json"
+type SettingsBootstrap = {
+  settings: Settings
+  rpcStatus: RpcStatus
+}
 
 function presentationAssetUrl(value?: string | null) {
   if (!value || /^(?:https?:|data:)/i.test(value)) return value
@@ -126,7 +123,6 @@ export function useRadianite() {
   const [settings, setSettings] = useState<Settings>(defaultSettings)
   const [backendReady, setBackendReady] = useState(false)
   const [settingsReady, setSettingsReady] = useState(false)
-  const settingsStore = useRef<Store | null>(null)
 
   const refresh = useCallback(async () => {
     const next = await invoke<AppSnapshot>("app_get_snapshot")
@@ -202,38 +198,17 @@ export function useRadianite() {
     async <K extends SettingKey>(key: K, value: Settings[K]) => {
       const previous = settings[key]
       const changesLocale = key === "uiLocale" || key === "rpcLocale"
+      const nextSettings = { ...settings, [key]: value }
       if (changesLocale) setBusy(true)
-      setSettings((current) => ({ ...current, [key]: value }))
+      setSettings(nextSettings)
 
       try {
-        if (key === "runAtBoot") {
-          if (value) {
-            if (!(await isAutostartEnabled())) await enableAutostart()
-          } else {
-            if (await isAutostartEnabled()) await disableAutostart()
-          }
-        }
-
-        if (key === "uiLocale" && typeof value === "string") {
-          const locale = await applyUiLocale(value)
-          await invoke("localization_set_ui_locale", { locale })
-          value = locale as Settings[K]
-          setSettings((current) => ({ ...current, uiLocale: locale }))
-        }
-
-        if (key === "rpcLocale" && typeof value === "string") {
-          const locale = resolveLocale([value], "rpc")
-          const status = await invoke<RpcStatus>("discord_rpc_set_locale", { locale })
-          setRpcStatus(status)
-          value = locale as Settings[K]
-          setSettings((current) => ({ ...current, rpcLocale: locale }))
-        }
-
-        const store = settingsStore.current
-        if (store) {
-          await store.set(key, value)
-          await store.save()
-        }
+        const result = await invoke<SettingsBootstrap>("settings_set", {
+          settings: nextSettings,
+        })
+        await applyUiLocale(result.settings.uiLocale)
+        setSettings(result.settings)
+        setRpcStatus(result.rpcStatus)
       } catch (err) {
         setSettings((current) => ({ ...current, [key]: previous }))
         if (key === "uiLocale" && typeof previous === "string") void applyUiLocale(previous)
@@ -405,66 +380,16 @@ export function useRadianite() {
 
     const loadSettings = async () => {
       try {
-        const store = await load(SETTINGS_STORE)
-        settingsStore.current = store
-
-        const [storedRunAtBoot, storedMinimizeToTray, storedEnableRpc, storedUiLocale, storedRpcLocale] =
-          await Promise.all([
-            store.get<boolean>("runAtBoot"),
-            store.get<boolean>("minimizeToTray"),
-            store.get<boolean>("enableRpcOnStart"),
-            store.get<string>("uiLocale"),
-            store.get<string>("rpcLocale"),
-          ])
-        const runAtBoot = storedRunAtBoot ?? defaultSettings.runAtBoot
-        const minimizeToTray = storedMinimizeToTray ?? defaultSettings.minimizeToTray
-        const enableRpcOnStart = storedEnableRpc ?? defaultSettings.enableRpcOnStart
-        const uiLocale = resolveLocale(
-          [storedUiLocale ?? defaultSettings.uiLocale],
-          "ui",
-        )
-        const rpcLocale = resolveLocale(
-          [storedRpcLocale ?? defaultSettings.rpcLocale],
-          "rpc",
-        )
-
-        const autostartActive = await isAutostartEnabled().catch(
-          () => runAtBoot,
-        )
-
-        await applyUiLocale(uiLocale)
+        const result = await invoke<SettingsBootstrap>("settings_initialize", {
+          defaultUiLocale: defaultSettings.uiLocale,
+          defaultRpcLocale: defaultSettings.rpcLocale,
+        })
+        await applyUiLocale(result.settings.uiLocale)
         if (active) {
-          setSettings({
-            runAtBoot: autostartActive,
-            minimizeToTray,
-            enableRpcOnStart,
-            uiLocale,
-            rpcLocale,
-          })
+          setSettings(result.settings)
+          setRpcStatus(result.rpcStatus)
           setSettingsReady(true)
         }
-
-        void Promise.all([
-          invoke("localization_set_ui_locale", { locale: uiLocale }),
-          (async () => {
-            await invoke<RpcStatus>("discord_rpc_set_locale", { locale: rpcLocale })
-            return invoke<RpcStatus>("discord_rpc_set_enabled", {
-              enabled: enableRpcOnStart,
-            })
-          })(),
-        ]).then(([, rpc]) => {
-          if (active) setRpcStatus(rpc)
-        }).catch((err) => {
-          if (active) toast.error(errorText(err))
-        })
-
-        await Promise.all([
-          store.set("runAtBoot", autostartActive),
-          store.set("uiLocale", uiLocale),
-          store.set("rpcLocale", rpcLocale),
-          store.set("enableRpcOnStart", enableRpcOnStart),
-        ])
-        await store.save()
       } catch (err) {
         if (active) toast.error(errorText(err))
       } finally {

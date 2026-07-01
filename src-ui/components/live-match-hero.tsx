@@ -141,7 +141,7 @@ function StatStrip({
   const { t } = useTranslation()
   const empty = t("common.notAvailable")
   const name = playerName(snapshot) ?? empty
-  const queue = queueLabel(snapshot?.queueId) ?? empty
+  const queue = queueLabel(snapshot?.queueId, snapshot?.queueKey) ?? empty
   const party = snapshot?.party.size
     ? `${snapshot.party.size} / ${snapshot.party.maxSize ?? snapshot.party.size}`
     : empty

@@ -8,6 +8,7 @@ use crate::{
         },
         valorant_client::ValorantPresentation,
     },
+    settings::{self, Settings, SettingsBootstrap},
 };
 
 #[tauri::command]
@@ -120,4 +121,23 @@ pub fn localization_set_ui_locale(app: AppHandle, locale: String) -> Result<(), 
 #[tauri::command]
 pub async fn overlay_get_status(state: State<'_, AppState>) -> Result<OverlayStatus, String> {
     Ok(state.overlay_status().await)
+}
+
+#[tauri::command]
+pub async fn settings_initialize(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    default_ui_locale: String,
+    default_rpc_locale: String,
+) -> Result<SettingsBootstrap, String> {
+    settings::initialize(&app, &state, default_ui_locale, default_rpc_locale).await
+}
+
+#[tauri::command]
+pub async fn settings_set(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    settings: Settings,
+) -> Result<SettingsBootstrap, String> {
+    settings::update(&app, &state, settings).await
 }

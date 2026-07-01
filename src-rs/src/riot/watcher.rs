@@ -1116,12 +1116,15 @@ fn normalize_live_snapshot(
         Some(ScoreSnapshot { ally, enemy })
     });
 
+    let queue_key = queue_id.as_deref().map(normalize_queue_key);
+
     LiveSnapshot {
         phase,
         player,
         region,
         shard,
         queue_id,
+        queue_key,
         party,
         map_id: presence.and_then(|presence| {
             first_str(
@@ -1203,6 +1206,22 @@ fn match_phase(presence: &Value) -> MatchPhase {
     }
 }
 
+fn normalize_queue_key(queue_id: &str) -> String {
+    match queue_id.to_ascii_lowercase().as_str() {
+        "gungame" | "escalation" | "ggrush" => "ggteam",
+        "oneforall" | "replication" => "onefa",
+        "snowballfight" => "snowball",
+        "teamdeathmatch" => "hurm",
+        "fortcollins" => "retake",
+        "dodgeball" => "knockout",
+        "allrandomonesite" => "aros",
+        "npev2" => "basictraining",
+        "exampleplayertestbot" => "botmatch",
+        queue => queue,
+    }
+    .to_string()
+}
+
 async fn enrich_pregame_match(
     client: &ValorantClient,
     puuid: &str,
@@ -1246,9 +1265,9 @@ mod tests {
 
     use super::{
         cache_is_fresh, credential_cache_ttl, file_signature, load_cached_client_version,
-        match_phase, normalize_live_snapshot, poll_delay, rank_refresh_due, session_cache_ttl,
-        store_cached_client_version, CoregameMetadata, CREDENTIAL_CACHE_FALLBACK_TTL,
-        CREDENTIAL_CACHE_MAX_TTL, IDENTITY_CACHE_TTL,
+        match_phase, normalize_live_snapshot, normalize_queue_key, poll_delay, rank_refresh_due,
+        session_cache_ttl, store_cached_client_version, CoregameMetadata,
+        CREDENTIAL_CACHE_FALLBACK_TTL, CREDENTIAL_CACHE_MAX_TTL, IDENTITY_CACHE_TTL,
     };
     use crate::riot::state::{MatchPhase, PlayerIdentity};
     use crate::riot::{
@@ -1257,6 +1276,13 @@ mod tests {
         valorant_client::ValorantContentCache,
     };
     use base64::{engine::general_purpose, Engine as _};
+
+    #[test]
+    fn normalizes_queue_aliases_for_frontend_presentation() {
+        assert_eq!(normalize_queue_key("GUNGAME"), "ggteam");
+        assert_eq!(normalize_queue_key("replication"), "onefa");
+        assert_eq!(normalize_queue_key("competitive"), "competitive");
+    }
 
     #[test]
     fn uses_nested_session_loop_state() {
