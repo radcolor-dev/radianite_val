@@ -1,4 +1,5 @@
 import type { TFunction } from "i18next"
+import { useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import {
   IconCircleDot,
@@ -11,6 +12,11 @@ import {
 } from "@tabler/icons-react"
 
 import { AppIcon } from "@/components/app-icon"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { phaseLabel, playerName, queueLabel } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import type { LiveSnapshot, ValorantPresentation } from "@/lib/types"
@@ -191,9 +197,54 @@ function StatCell({ icon, label, value, accent, tone }: {
       </span>
       <div className="min-w-0">
         <p className="text-[0.65rem] font-medium tracking-wide text-muted-foreground uppercase">{label}</p>
-        <p className={cn("truncate text-sm font-semibold", accent && "text-foreground", tone === "primary" && "text-primary")}>{value}</p>
+        <TruncatedValue value={value} accent={accent} tone={tone} />
       </div>
     </div>
+  )
+}
+
+function TruncatedValue({ value, accent, tone }: {
+  value: string
+  accent?: boolean
+  tone?: "primary"
+}) {
+  const valueRef = useRef<HTMLParagraphElement>(null)
+  const [truncated, setTruncated] = useState(false)
+
+  useEffect(() => {
+    const element = valueRef.current
+    if (!element) return
+
+    const update = () => setTruncated(element.scrollWidth > element.clientWidth)
+    update()
+
+    const observer = new ResizeObserver(update)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [value])
+
+  const text = (
+    <p
+      ref={valueRef}
+      tabIndex={truncated ? 0 : undefined}
+      className={cn(
+        "truncate rounded-sm text-sm font-semibold outline-none",
+        truncated && "cursor-help focus-visible:ring-2 focus-visible:ring-ring",
+        accent && "text-foreground",
+        tone === "primary" && "text-primary",
+      )}
+    >
+      {value}
+    </p>
+  )
+
+  if (!truncated) return text
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{text}</TooltipTrigger>
+      <TooltipContent>{value}</TooltipContent>
+    </Tooltip>
   )
 }
 
