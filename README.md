@@ -85,6 +85,10 @@ Radianite is intended to be a local companion and overlay tool. You are responsi
 
 Radianite is an unofficial community project. It is not created, sponsored, endorsed, or supported by Riot Games. Riot Games, VALORANT, and related marks are trademarks or registered trademarks of Riot Games, Inc.
 
+## Support
+
+For help, feedback, and community support, join us on [Discord](https://discord.gg/rAX2WBvjjh) or [Telegram](https://t.me/radcolordev).
+
 ## Author
 
 Created by **Shashank Baghel**.
