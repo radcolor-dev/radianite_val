@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/tooltip"
 
 const SECOND = 1_000
+const RECENT = 10 * SECOND
 const MINUTE = 60 * SECOND
 const HOUR = 60 * MINUTE
 const DAY = 24 * HOUR
@@ -55,6 +56,11 @@ function formatRelativeTime(date: Date, now: number, locale: string) {
   const absoluteDifference = Math.abs(difference)
   const formatter = new Intl.RelativeTimeFormat(locale, { numeric: "auto" })
 
+  // Normal polling runs every 2–5 seconds. Keep that healthy state visually
+  // stable, then show real elapsed time once updates are actually delayed.
+  if (absoluteDifference < RECENT) {
+    return formatter.format(-1, "second")
+  }
   if (absoluteDifference < MINUTE) {
     return formatter.format(Math.round(difference / SECOND), "second")
   }
