@@ -13,7 +13,8 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { Panel } from "@/components/panel"
-import { formatDate, formatTime } from "@/lib/format"
+import { RelativeTime } from "@/components/relative-time"
+import { formatDate } from "@/lib/format"
 import { translateMessage } from "@/lib/localized-message"
 import { cn } from "@/lib/utils"
 import type { UpdaterState } from "@/lib/types"
@@ -45,7 +46,7 @@ export function UpdatesCard({ updater, version, canInstall, lastChecked, onCheck
         <div className="flex flex-col">
           <InfoRow icon={<IconTag />} label={t("updates.currentVersion")} value={`v${current}`} mono onClick={current === t("common.notAvailable") ? undefined : () => setSelectedRelease("current")} />
           <InfoRow icon={<IconRocket />} label={t("updates.status")} value={statusLabel(updater, t)} valueClassName={statusTone(updater.status)} />
-          <InfoRow icon={<IconClockCheck />} label={t("updates.lastChecked")} value={lastChecked ? formatTime(lastChecked) : t("updates.never")} mono />
+          <InfoRow icon={<IconClockCheck />} label={t("updates.lastChecked")} value={<RelativeTime date={lastChecked} fallback={t("updates.never")} />} mono />
           {hasUpdate ? <InfoRow icon={<IconSparkles />} label={t("updates.latestVersion")} value={`v${updater.version}`} valueClassName="text-primary" mono onClick={() => setSelectedRelease("latest")} /> : null}
           {hasUpdate && updater.date ? <InfoRow icon={<IconCalendarEvent />} label={t("updates.released")} value={formatDate(new Date(updater.date.replace(/ \d{2}:\d{2}:\d{2}.*$/, "")))} mono /> : null}
         </div>
@@ -76,7 +77,7 @@ export function UpdatesCard({ updater, version, canInstall, lastChecked, onCheck
   )
 }
 
-function InfoRow({ icon, label, value, mono, valueClassName, onClick }: { icon: React.ReactNode; label: string; value: string; mono?: boolean; valueClassName?: string; onClick?: () => void }) {
+function InfoRow({ icon, label, value, mono, valueClassName, onClick }: { icon: React.ReactNode; label: string; value: React.ReactNode; mono?: boolean; valueClassName?: string; onClick?: () => void }) {
   const content = <><span className="flex items-center gap-2.5 text-sm text-muted-foreground [&_svg]:size-4">{icon}<span className="text-foreground">{label}</span></span><span className={cn("text-sm font-semibold", mono && "font-mono", valueClassName)}>{value}</span></>
   const className = "flex w-full items-center justify-between gap-3 border-t border-border/60 py-1.5 first:border-t-0"
   return onClick ? <button type="button" className={cn(className, "rounded-sm text-start transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring")} onClick={onClick}>{content}</button> : <div className={className}>{content}</div>

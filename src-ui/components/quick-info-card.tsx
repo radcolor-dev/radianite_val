@@ -8,7 +8,7 @@ import {
 import { useTranslation } from "react-i18next"
 
 import { Panel } from "@/components/panel"
-import { formatTime } from "@/lib/format"
+import { RelativeTime } from "@/components/relative-time"
 import { cn } from "@/lib/utils"
 import type { LiveSnapshot, OverlayStatus, RpcStatus } from "@/lib/types"
 
@@ -50,7 +50,7 @@ export function QuickInfoCard({
     {
       icon: <IconClockHour4 />,
       label: t("quickInfo.lastSync"),
-      value: formatTime(lastSync),
+      value: <RelativeTime date={lastSync} fallback="--:--" />,
       good: undefined,
     },
   ]

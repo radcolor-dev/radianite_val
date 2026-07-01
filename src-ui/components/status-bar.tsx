@@ -10,7 +10,8 @@ import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { formatTime, formatUptime } from "@/lib/format"
+import { RelativeTime } from "@/components/relative-time"
+import { formatUptime } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import type { CoreStatus } from "@/lib/types"
 
@@ -70,7 +71,7 @@ export function StatusBar({
           <IconRefreshDot className="size-4" />
           {t("statusBar.lastSync")}
           <span className="font-mono text-foreground">
-            {formatTime(lastSync)}
+            <RelativeTime date={lastSync} fallback="--:--" />
           </span>
         </span>
         <Separator orientation="vertical" className="h-4" />
