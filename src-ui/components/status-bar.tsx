@@ -1,14 +1,11 @@
 import {
   IconClockHour4,
-  IconFileText,
   IconRefreshDot,
   IconWifi,
 } from "@tabler/icons-react"
 import { useEffect, useState } from "react"
-import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
 
-import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { RelativeTime } from "@/components/relative-time"
 import { formatUptime } from "@/lib/format"
@@ -57,7 +54,7 @@ export function StatusBar({
   }, [startedAt])
 
   return (
-    <footer className="flex h-11 shrink-0 items-center justify-between gap-4 border-t bg-background/80 px-4 text-xs backdrop-blur">
+    <footer className="flex h-11 shrink-0 items-center border-t bg-background/80 px-4 text-xs backdrop-blur">
       <div className="flex items-center gap-4 text-muted-foreground">
         <span className="flex items-center gap-1.5">
           <IconWifi className={cn("size-4", health.tone)} />
@@ -82,17 +79,6 @@ export function StatusBar({
             {formatUptime(uptimeMs)}
           </span>
         </span>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => toast.info(t("statusBar.logsSoon"))}
-        >
-          <IconFileText data-icon="inline-start" />
-          {t("statusBar.logs")}
-        </Button>
       </div>
     </footer>
   )

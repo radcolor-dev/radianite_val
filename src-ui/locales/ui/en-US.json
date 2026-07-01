@@ -204,9 +204,7 @@
     "error": "Error",
     "offline": "Offline",
     "lastSync": "Last Sync",
-    "uptime": "Uptime",
-    "logs": "Logs",
-    "logsSoon": "Log viewer is coming soon"
+    "uptime": "Uptime"
   },
   "settings": {
     "title": "Settings",
