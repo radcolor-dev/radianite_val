@@ -47,7 +47,7 @@ export function UpdatesCard({ updater, version, canInstall, lastChecked, onCheck
         <div className="flex flex-col">
           <InfoRow icon={<IconTag />} label={t("updates.currentVersion")} value={`v${current}`} mono onClick={current === t("common.notAvailable") ? undefined : () => setSelectedRelease("current")} />
           <InfoRow icon={<IconRocket />} label={t("updates.status")} value={statusLabel(updater, t)} valueClassName={statusTone(updater.status)} />
-          <InfoRow icon={<IconClockCheck />} label={t("updates.lastChecked")} value={<RelativeTime date={lastChecked} fallback={t("updates.never")} />} mono />
+          <InfoRow icon={<IconClockCheck />} label={t("updates.lastChecked")} value={<RelativeTime date={lastChecked} fallback={t("updates.never")} coarse />} mono />
           {hasUpdate ? <InfoRow icon={<IconSparkles />} label={t("updates.latestVersion")} value={`v${updater.version}`} valueClassName="text-primary" mono onClick={() => setSelectedRelease("latest")} /> : null}
           {hasUpdate && updater.date ? <InfoRow icon={<IconCalendarEvent />} label={t("updates.released")} value={formatDate(new Date(updater.date.replace(/ \d{2}:\d{2}:\d{2}.*$/, "")))} mono /> : null}
         </div>

@@ -158,6 +158,13 @@
     "released": "Released",
     "lastChecked": "Last checked",
     "never": "Never",
+    "relativeTime": {
+      "justNow": "Just now",
+      "minuteAgo": "A minute ago",
+      "whileAgo": "A while ago",
+      "today": "Today",
+      "yesterday": "Yesterday"
+    },
     "check": "Check for updates",
     "install": "Install update",
     "whatsNew": "What's new",
